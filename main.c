@@ -2,42 +2,22 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-
 #include <sys/socket.h>
-#include <sys/types.h>
 
-#include <netinet/in.h>
-#include "mysqldata.h"
 #include "signalhandling.h"
+#include "connection.h"
+#include "mysqldata.h"
 
-int setup_bind_and_listen_on_socket(int port);
 void assembly_response(char *mess, char* body);
 void process_get_method(int sock);
 void get_body(char* body, char* http_request);
+int determine_method(char* http_request);
+void process_post_method(int connected_socket, char* http_request);
+void receive_http_request(int sock);
 
 
 #define CONNECT 1
 
-
-
-
-int setup_bind_and_listen_on_socket(int port) {
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
-
-    struct sockaddr_in adress;
-    adress.sin_family = AF_INET;
-    adress.sin_port = htons(port);
-    adress.sin_addr.s_addr = INADDR_ANY;
-
-    int err = bind(sock, (struct sockaddr*) &adress, sizeof(adress));
-    printf("Binding returned: %d\n", err);
-    if (err < 0) {
-        continue_execution = 0;
-        return -1;
-    }
-    listen(sock, 5);
-    return sock;
-}
 
 
 void assembly_response(char *mess, char* body) {

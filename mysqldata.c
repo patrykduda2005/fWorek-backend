@@ -1,8 +1,8 @@
-#include "mysqldata.h"
-#include "mysqlcredentials.h"
 #include <mysql/mysql.h>
 #include <stdio.h>
 #include <string.h>
+#include "mysqldata.h"
+#include "mysqlcredentials.h"
 
 const char *field_names[5] = {
     "grupa",
@@ -32,9 +32,10 @@ void wrap_in_json(char *output, char ***data, int rowc) {
 
 void getData(char *mess) {
     MYSQL *sql = mysql_init(NULL);
+    printf("CRED: %s %s %s %s\n", host, user, passwd, db);
     MYSQL *conn = mysql_real_connect(sql, host, user, passwd, db, 0, NULL, 0);
     if (conn == NULL) {
-        printf("cannot connect to the database");
+        printf("cannot connect to the database\n");
         mysql_close(sql);
         return;
     }
@@ -55,7 +56,7 @@ void actually_inserting_data(char data[5][200]) {
     MYSQL *sql = mysql_init(NULL);
     MYSQL *conn = mysql_real_connect(sql, host, user, passwd, db, 0, NULL, 0);
     if (conn == NULL) {
-        printf("cannot connect to the database");
+        printf("cannot connect to the database\n");
         mysql_close(sql);
         return;
     }

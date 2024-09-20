@@ -1,4 +1,3 @@
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -9,9 +8,8 @@
 
 #include <netinet/in.h>
 #include "mysqldata.h"
+#include "signalhandling.h"
 
-static void signal_handler(int sig);
-void init_signal();
 int setup_bind_and_listen_on_socket(int port);
 void assembly_response(char *mess, char* body);
 void process_get_method(int sock);
@@ -19,20 +17,7 @@ void get_body(char* body, char* http_request);
 
 
 #define CONNECT 1
-int continue_execution = 1;
 
-static void signal_handler(int sig) {
-    if (sig == SIGINT) {
-        continue_execution = 0;
-    }
-}
-struct sigaction sinact;
-void init_signal() {
-    sinact.sa_handler = signal_handler;
-    sigemptyset(&sinact.sa_mask);
-    sinact.sa_flags = 0;
-    sigaction(SIGINT, &sinact, NULL);
-}
 
 
 
@@ -127,8 +112,9 @@ void process_get_method(int connected_socket) {
     char mess[1000] = "";
     char body[1000] = "";
     getData(body);
-    assembly_response(mess, body);
+    assembly_response(mess, "");
     send(connected_socket, &mess, strlen(mess), 0);
+    send(connected_socket, &body, strlen(body), 0);
 }
 
 

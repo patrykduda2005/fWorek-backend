@@ -3,6 +3,7 @@
 #include <string.h>
 #include "mysqldata.h"
 #include "mysqlcredentials.h"
+#include "logging.h"
 
 const char *field_names[5] = {
     "grupa",
@@ -32,10 +33,10 @@ void wrap_in_json(char *output, char ***data, int rowc) {
 
 void getData(char *mess) {
     MYSQL *sql = mysql_init(NULL);
-    printf("CRED: %s %s %s %s\n", host, user, passwd, db);
+    messlog("CRED: %s %s %s %s", host, user, passwd, db);
     MYSQL *conn = mysql_real_connect(sql, host, user, passwd, db, 0, NULL, 0);
     if (conn == NULL) {
-        printf("cannot connect to the database\n");
+        messlog("cannot connect to the database");
         mysql_close(sql);
         return;
     }
@@ -56,7 +57,7 @@ void actually_inserting_data(char data[5][200]) {
     MYSQL *sql = mysql_init(NULL);
     MYSQL *conn = mysql_real_connect(sql, host, user, passwd, db, 0, NULL, 0);
     if (conn == NULL) {
-        printf("cannot connect to the database\n");
+        messlog("cannot connect to the database\n");
         mysql_close(sql);
         return;
     }
@@ -65,7 +66,7 @@ void actually_inserting_data(char data[5][200]) {
 
     int queryerr = mysql_query(sql, query);
     if (queryerr) {
-        printf("Inserting not succesfull");
+        messlog("Inserting not succesfull");
     }
     mysql_close(sql);
 }
@@ -96,11 +97,11 @@ void insertData(char *data) {
         data++;
     }
 
-    actually_inserting_data(&mysql_ready[0]);
+    actually_inserting_data(mysql_ready);
 
     printf("\n");
     for (int i = 0; i < 5; i++) {
-        printf("%d: %s\n", i, mysql_ready[i]);
+        messlog("%d: %s\n", i, mysql_ready[i]);
     }
     printf("\n");
 }

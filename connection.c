@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <string.h>
 #include "connection.h"
+#include "logging.h"
 #include "signalhandling.h"
 #include "mysqldata.h"
 
@@ -13,7 +14,9 @@ enum HTTP_METHOD {
     POST_METHOD
 };
 
+//used in main.c
 void receive_http_request(int sock);
+
 void process_get_method(int connected_socket);
 void process_post_method(int connected_socket, char* http_request);
 void assembly_response(char *mess, char* body);
@@ -28,7 +31,7 @@ int setup_bind_and_listen_on_socket(int port) {
     adress.sin_addr.s_addr = INADDR_ANY;
 
     int err = bind(sock, (struct sockaddr*) &adress, sizeof(adress));
-    printf("Binding returned: %d\n", err);
+    messlog("Binding returned: %d\n", err);
     if (err < 0) {
         continue_execution = 0;
         return -1;
@@ -41,7 +44,7 @@ void receive_http_request(int sock) {
     int connected_socket = accept(sock, NULL, NULL);
     char rec[1000] = "";
     recv(connected_socket, rec, sizeof(rec), 0);
-    printf("Request:\n%s\n---------", rec);
+    messlog("Request:\n%s\n---------", rec);
 
     int req_method = determine_method(rec);
 

@@ -1,5 +1,6 @@
 #include <mysql/mysql.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "mysqldata.h"
 #include "mysqlcredentials.h"
@@ -12,45 +13,53 @@ const char *field_names[5] = {
     "data",
     "opis"
 };
-void wrap_in_json(char *output, char ***data, int rowc) {
+#define LINESIZE (/*linelimit*/300 + /*{},*/3 + /*,*/4 + /*\0*/1)
+char** wrap_in_json(char ***data, int rowc) {
     //5 fields
-    strcat(output, "["); output++;
+    messlog("Wrapping..");
+    //char send_ready[rowc + 2][LINESIZE] = malloc(sizeof(char) * (LINESIZE * (rowc + 2)));
+    char (*send_ready)[LINESIZE] = malloc(sizeof(char) * LINESIZE * (rowc + 2));
+    memset(send_ready, 0, sizeof(send_ready));
+    strcat(send_ready[0], "[");
     for (int row = 0; row < rowc; row++) {
-        strcat(output, "{"); output++;
-        //output += sprintf(output, "{");
+        char* send_ready_row = send_ready[row + 1];
+        send_ready_row += sprintf(send_ready_row, "{");
+        //strcat(send_ready_row, "{"); send_ready_row++;
         for (int i = 0; i < 5; i++) {
-            output += sprintf(output, "\"%s\": \"%s\"", field_names[i], data[row][i]);
+            send_ready_row += sprintf(send_ready_row, "\"%s\": \"%s\"", field_names[i], data[row][i]);
             if (i != 4)
-                output += sprintf(output, ",");
+                send_ready_row += sprintf(send_ready_row, ",");
         }
-        strcat(output, "}"); output++;
+        strcat(send_ready_row, "}"); send_ready_row++;
         if (row != rowc-1)
-            output += sprintf(output, ",");
+            send_ready_row += sprintf(send_ready_row, ",");
     }
-    strcat(output, "]");
-
+    sprintf(send_ready[rowc+1], "]");
+    printf("%s\n", send_ready[rowc+1]);
+    messlog("Wrapping done");
+    return (char**)send_ready;
 }
 
-void getData(char *mess) {
+char** getData(char *mess) {
     MYSQL *sql = mysql_init(NULL);
     messlog("CRED: %s %s %s %s", host, user, passwd, db);
     MYSQL *conn = mysql_real_connect(sql, host, user, passwd, db, 0, NULL, 0);
     if (conn == NULL) {
         messlog("cannot connect to the database");
         mysql_close(sql);
-        return;
+        return NULL;
     }
     mysql_query(conn, "SELECT `grupa`, `przedmiot`, `typ`, `data`, `opis` FROM `na_ocene`");
     MYSQL_RES *res = mysql_store_result(conn);
+    mysql_close(sql);
 
     int rowc = mysql_num_rows(res);
     char **data[rowc];
     for (int i = 0; i < rowc; i++) {
         data[i] = mysql_fetch_row(res);
     }
-    wrap_in_json(mess, data, rowc);
+    return wrap_in_json(data, rowc);
     mysql_free_result(res);
-    mysql_close(sql);
 }
 
 void actually_inserting_data(char data[5][200]) {

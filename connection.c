@@ -60,6 +60,11 @@ void receive_http_request(int sock) {
 
     close(connected_socket);
 }
+
+void sending(int connected_socket, char** send_ready) {
+}
+
+
 void process_get_method(int connected_socket) {
     char mess[1000] = "";
     char body[1000] = "";

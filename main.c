@@ -8,8 +8,7 @@
 #include "mysqldata.h"
 
 
-
-#define CONNECT 0
+#define CONNECT 1
 
 int main() {
     init_signal();
@@ -28,8 +27,7 @@ int main() {
     char body[1000] = "";
     //get_body(body, mess);
     //insertData(body);
-    char (*data)[308] = (char(*)[308])getData(body);
-
+    send_ready_line* data = getData(body);
     for (int i = 0; ; i++) {
         printf("%s\n", data[i]);
         if (data[i][0] == ']') break;

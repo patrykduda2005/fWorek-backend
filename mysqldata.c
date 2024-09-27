@@ -13,16 +13,46 @@ const char *field_names[5] = {
     "data",
     "opis"
 };
-#define LINESIZE (/*linelimit*/300 + /*{},*/3 + /*,*/4 + /*\0*/1)
-char** wrap_in_json(char ***data, int rowc) {
+//struct send_ready wrap_in_json(char ***data, int rowc) {
+//    //5 fields
+//    messlog("Wrapping..");
+//
+//    char (*send_ready)[LINESIZE] = malloc(sizeof(char) * LINESIZE * (rowc + 2));
+//    memset(send_ready, 0, sizeof(send_ready));
+//
+//    strcat(send_ready[0], "[");
+//    for (int row = 0; row < rowc; row++) {
+//        char* send_ready_row = send_ready[row + 1];
+//        send_ready_row += sprintf(send_ready_row, "{");
+//        //strcat(send_ready_row, "{"); send_ready_row++;
+//        for (int i = 0; i < 5; i++) {
+//            send_ready_row += sprintf(send_ready_row, "\"%s\": \"%s\"", field_names[i], data[row][i]);
+//            if (i != 4)
+//                send_ready_row += sprintf(send_ready_row, ",");
+//        }
+//        strcat(send_ready_row, "}"); send_ready_row++;
+//        if (row != rowc-1)
+//            send_ready_row += sprintf(send_ready_row, ",");
+//    }
+//    sprintf(send_ready[rowc+1], "]");
+//
+//    messlog("Wrapping done");
+//    struct send_ready records;
+//    records.data = send_ready;
+//    return records;
+//}
+
+
+send_ready_line* wrap_in_json(char ***data, int rowc) {
     //5 fields
     messlog("Wrapping..");
-    //char send_ready[rowc + 2][LINESIZE] = malloc(sizeof(char) * (LINESIZE * (rowc + 2)));
-    char (*send_ready)[LINESIZE] = malloc(sizeof(char) * LINESIZE * (rowc + 2));
-    memset(send_ready, 0, sizeof(send_ready));
-    strcat(send_ready[0], "[");
+
+    send_ready_line* sr = malloc(sizeof(char) * LINESIZE * (rowc + 2));
+    memset(sr, 0, sizeof(sr));
+
+    strcat(sr[0], "[");
     for (int row = 0; row < rowc; row++) {
-        char* send_ready_row = send_ready[row + 1];
+        char* send_ready_row = sr[row + 1];
         send_ready_row += sprintf(send_ready_row, "{");
         //strcat(send_ready_row, "{"); send_ready_row++;
         for (int i = 0; i < 5; i++) {
@@ -34,13 +64,13 @@ char** wrap_in_json(char ***data, int rowc) {
         if (row != rowc-1)
             send_ready_row += sprintf(send_ready_row, ",");
     }
-    sprintf(send_ready[rowc+1], "]");
-    printf("%s\n", send_ready[rowc+1]);
+    sprintf(sr[rowc+1], "]");
+
     messlog("Wrapping done");
-    return (char**)send_ready;
+    return sr;
 }
 
-char** getData(char *mess) {
+send_ready_line* getData(char *mess) {
     MYSQL *sql = mysql_init(NULL);
     messlog("CRED: %s %s %s %s", host, user, passwd, db);
     MYSQL *conn = mysql_real_connect(sql, host, user, passwd, db, 0, NULL, 0);
@@ -58,8 +88,8 @@ char** getData(char *mess) {
     for (int i = 0; i < rowc; i++) {
         data[i] = mysql_fetch_row(res);
     }
-    return wrap_in_json(data, rowc);
     mysql_free_result(res);
+    return wrap_in_json(data, rowc);
 }
 
 void actually_inserting_data(char data[5][200]) {

@@ -1,4 +1,5 @@
 #include <sys/socket.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <stdio.h>
 #include <netinet/in.h>
@@ -61,30 +62,34 @@ void receive_http_request(int sock) {
     close(connected_socket);
 }
 
-void sending(int connected_socket, char** send_ready) {
+void body_sending(int connected_socket, send_ready_line* sr) {
+    for (int i = 0; ; i++) {
+        send(connected_socket, sr[i], strlen(sr[i]), 0);
+        if (sr[i][0] == ']') break;
+    }
+    free(sr);
 }
 
 
 void process_get_method(int connected_socket) {
     char mess[1000] = "";
     char body[1000] = "";
-    getData(body);
+    send_ready_line* sr = getData(body);
     assembly_response(mess, "");
     send(connected_socket, &mess, strlen(mess), 0);
-    send(connected_socket, &body, strlen(body), 0);
+    body_sending(connected_socket, sr);
 }
 
 void process_post_method(int connected_socket, char* http_request) {
+    char mess[1000] = "";
     char body[1000] = "";
     get_body(body, http_request);
-    //printf("BODY:\n%s\n", body);
-    char mess[1000] = "";
-    assembly_response(mess, "");
     insertData(body);
+    assembly_response(mess, "");
     send(connected_socket, &mess, strlen(mess), 0);
 }
 void assembly_response(char *mess, char* body) {
-    strcat(mess, "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: Content-Type\r\nAccess-Control-Allow-Methods: GET\r\n\r\n");
+    strcat(mess, "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: Content-Type\r\nAccess-Control-Allow-Methods: GET, POST\r\n\r\n");
     //char body[1000] = "";
     //getData(body);
     strcat(mess, body);

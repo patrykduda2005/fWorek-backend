@@ -8,24 +8,16 @@
 #include "connection.h"
 #include "logging.h"
 #include "signalhandling.h"
-#include "mysqldata.h"
+#include "send_ready.h"
+#include "process_string.h"
 
-struct http_response {
-    char header[1000];
-    send_ready_line* body;
-};
 
 enum HTTP_METHOD {
     GET_METHOD,
     POST_METHOD
 };
 
-//used in main.c
 void receive_http_request(int sock);
-
-void process_get_method(struct http_response* hr);
-void process_post_method(char* http_request, struct http_response* hr);
-void assembly_response(char *mess, char* body);
 int determine_method(char* http_request);
 void body_sending(int connected_socket, send_ready_line* sr);
 
@@ -83,26 +75,6 @@ void body_sending(int connected_socket, send_ready_line* sr) {
 }
 
 
-void process_get_method(struct http_response* hr) {
-    char body[1000] = "";
-    send_ready_line* sr = getData(body);
-    assembly_response(hr->header, "");
-    hr->body = (send_ready_line*)sr;
-}
-
-void process_post_method(char* http_request, struct http_response* hr) {
-    char body[1000] = "";
-    get_body(body, http_request);
-    send_ready_line* sr = insertData(body);
-    assembly_response(hr->header, "");
-    hr->body = (send_ready_line*) sr;
-}
-void assembly_response(char *mess, char* body) {
-    strcat(mess, "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: Content-Type\r\nAccess-Control-Allow-Methods: GET, POST\r\n\r\n");
-    //char body[1000] = "";
-    //getData(body);
-    strcat(mess, body);
-}
 int determine_method(char* http_request) {
     //-1 nothing, 1 GET, 2 POST
     char method[10];
@@ -114,15 +86,4 @@ int determine_method(char* http_request) {
     if (strcmp(method, "GET") == 0) return GET_METHOD;
     if (strcmp(method, "POST") == 0) return POST_METHOD;
     return 0;
-}
-
-void get_body(char* body, char* http_request) {
-    for(; *http_request != '\0'; http_request++) {
-        if (*http_request != '\r')
-            continue;
-        if(*(http_request+1) == '\n' && *(http_request+2) == '\r' && *(http_request+3) == '\n') {
-            break;
-        }
-    }
-    strcpy(body, http_request+4);
 }

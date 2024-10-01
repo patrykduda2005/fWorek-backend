@@ -4,6 +4,6 @@
 #include "send_ready.h"
 
 send_ready_line* getData(char *mess);
-void insertData(char* data);
+send_ready_line* insertData(char* data);
 
 #endif

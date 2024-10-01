@@ -10,6 +10,11 @@
 #include "signalhandling.h"
 #include "mysqldata.h"
 
+struct http_response {
+    char header[1000];
+    send_ready_line* body;
+};
+
 enum HTTP_METHOD {
     GET_METHOD,
     POST_METHOD
@@ -18,10 +23,11 @@ enum HTTP_METHOD {
 //used in main.c
 void receive_http_request(int sock);
 
-void process_get_method(int connected_socket);
-void process_post_method(int connected_socket, char* http_request);
+void process_get_method(struct http_response* hr);
+void process_post_method(char* http_request, struct http_response* hr);
 void assembly_response(char *mess, char* body);
 int determine_method(char* http_request);
+void body_sending(int connected_socket, send_ready_line* sr);
 
 int setup_bind_and_listen_on_socket(int port) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -49,44 +55,47 @@ void receive_http_request(int sock) {
 
     int req_method = determine_method(rec);
 
+    struct http_response hr;
+    memset(hr.header, 0, sizeof(hr.header));
     switch (req_method) {
         case GET_METHOD:
-            process_get_method(connected_socket);
+            process_get_method(&hr);
             break;
         case POST_METHOD:
-            process_post_method(connected_socket, rec);
+            process_post_method(rec, &hr);
             break;
     
+    }
+    if (req_method >= 0 ) {
+        send(connected_socket, hr.header, strlen(hr.header), 0);
+        body_sending(connected_socket, hr.body);
     }
 
     close(connected_socket);
 }
 
 void body_sending(int connected_socket, send_ready_line* sr) {
-    for (int i = 0; ; i++) {
+    for (int i = 0; i < 50; i++) {
+        if (sr[i][0] == '\0') break;
         send(connected_socket, sr[i], strlen(sr[i]), 0);
-        if (sr[i][0] == ']') break;
     }
     free(sr);
 }
 
 
-void process_get_method(int connected_socket) {
-    char mess[1000] = "";
+void process_get_method(struct http_response* hr) {
     char body[1000] = "";
     send_ready_line* sr = getData(body);
-    assembly_response(mess, "");
-    send(connected_socket, &mess, strlen(mess), 0);
-    body_sending(connected_socket, sr);
+    assembly_response(hr->header, "");
+    hr->body = (send_ready_line*)sr;
 }
 
-void process_post_method(int connected_socket, char* http_request) {
-    char mess[1000] = "";
+void process_post_method(char* http_request, struct http_response* hr) {
     char body[1000] = "";
     get_body(body, http_request);
-    insertData(body);
-    assembly_response(mess, "");
-    send(connected_socket, &mess, strlen(mess), 0);
+    send_ready_line* sr = insertData(body);
+    assembly_response(hr->header, "");
+    hr->body = (send_ready_line*) sr;
 }
 void assembly_response(char *mess, char* body) {
     strcat(mess, "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: Content-Type\r\nAccess-Control-Allow-Methods: GET, POST\r\n\r\n");

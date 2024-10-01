@@ -47,7 +47,7 @@ send_ready_line* wrap_in_json(char ***data, int rowc) {
     //5 fields
     messlog("Wrapping..");
 
-    send_ready_line* sr = malloc(sizeof(char) * LINESIZE * (rowc + 2));
+    send_ready_line* sr = malloc(sizeof(char) * LINESIZE * (rowc + 2 + 1));
     memset(sr, 0, sizeof(sr));
 
     strcat(sr[0], "[");
@@ -65,6 +65,7 @@ send_ready_line* wrap_in_json(char ***data, int rowc) {
             send_ready_row += sprintf(send_ready_row, ",");
     }
     sprintf(sr[rowc+1], "]");
+    sprintf(sr[rowc+2], "\0");
 
     messlog("Wrapping done");
     return sr;
@@ -92,13 +93,13 @@ send_ready_line* getData(char *mess) {
     return wrap_in_json(data, rowc);
 }
 
-void actually_inserting_data(char data[5][200]) {
+send_ready_line* actually_inserting_data(char data[5][200]) {
     MYSQL *sql = mysql_init(NULL);
     MYSQL *conn = mysql_real_connect(sql, host, user, passwd, db, 0, NULL, 0);
     if (conn == NULL) {
         messlog("cannot connect to the database\n");
         mysql_close(sql);
-        return;
+        return NULL;
     }
     char query[300];
     sprintf(query,  "INSERT INTO `na_ocene` (`grupa`, `przedmiot`, `typ`, `data`, `opis`) VALUES ('%s', '%s', '%s', '%s', '%s')", data[0], data[1], data[2], data[3], data[4]);
@@ -108,9 +109,18 @@ void actually_inserting_data(char data[5][200]) {
         messlog("Inserting not succesfull");
     }
     mysql_close(sql);
+    send_ready_line* sr = malloc(sizeof(char) * LINESIZE * 2);
+    memset(sr, 0, sizeof(sr));
+    if (!queryerr) {
+        sprintf(sr[0], "OK\0");
+    } else {
+        sprintf(sr[0], "NOT OK\0");
+    }
+    strcat(sr[1], "\0");
+    return sr;
 }
 
-void insertData(char *data) {
+send_ready_line* insertData(char *data) {
     //name=wartosc&name=wartosc&name=wartosc
     int isvalue = 0;    // 0 - property, 1 - value
     int propertyindex = 0;
@@ -136,11 +146,13 @@ void insertData(char *data) {
         data++;
     }
 
-    actually_inserting_data(mysql_ready);
+    
+    send_ready_line* sr = actually_inserting_data(mysql_ready);
+    return sr;
 
-    printf("\n");
-    for (int i = 0; i < 5; i++) {
-        messlog("%d: %s\n", i, mysql_ready[i]);
-    }
-    printf("\n");
+    //printf("\n");
+    //for (int i = 0; i < 5; i++) {
+    //    messlog("%d: %s\n", i, mysql_ready[i]);
+    //}
+    //printf("\n");
 }

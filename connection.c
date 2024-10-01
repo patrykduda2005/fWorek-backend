@@ -67,8 +67,7 @@ void receive_http_request(int sock) {
 }
 
 void body_sending(int connected_socket, send_ready_line* sr) {
-    for (int i = 0; i < 50; i++) {
-        if (sr[i][0] == '\0') break;
+    for (int i = 0; sr[i][0] != '\0'; i++) {
         send(connected_socket, sr[i], strlen(sr[i]), 0);
     }
     free(sr);

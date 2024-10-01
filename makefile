@@ -5,7 +5,7 @@ exe: $(OBJECTS)
 	gcc $(OBJECTS) -o exe $(LIBS)
 
 %.o: %.c %.h
-	gcc -c $<
+	gcc -g -c $<
 
 upload:
 	scp -P 11339 ./main.c frog@frog01.mikr.us:/home/frog/dziennik/main.c

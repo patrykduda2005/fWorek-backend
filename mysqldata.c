@@ -89,8 +89,9 @@ send_ready_line* getData(char *mess) {
     for (int i = 0; i < rowc; i++) {
         data[i] = mysql_fetch_row(res);
     }
+    send_ready_line* sr = wrap_in_json(data, rowc);
     mysql_free_result(res);
-    return wrap_in_json(data, rowc);
+    return sr;
 }
 
 send_ready_line* actually_inserting_data(char data[5][200]) {

@@ -3,12 +3,15 @@
 #include <unistd.h>
 #include <sys/socket.h>
 
+#include "dziennik_fetch.h"
+#include "process_string.h"
+#include "send_ready.h"
 #include "signalhandling.h"
 #include "connection.h"
 #include "mysqldata.h"
 
 
-#define CONNECT 1
+#define CONNECT 0
 
 int main() {
     init_signal();
@@ -27,12 +30,23 @@ int main() {
     char body[1000] = "";
     //get_body(body, mess);
     //insertData(body);
-    send_ready_line* data = getData(body);
-    for (int i = 0; ; i++) {
-        printf("%s\n", data[i]);
-        if (data[i][0] == ']') break;
+    struct http_response hr;
+    process_get_method(&hr);
+    send_ready_line* sr = hr.body;
+    int rak = 0;
+    if (sr != NULL) {
+        for (int i = 0; rak < 2; i++) {
+            if (sr[i][0] == '\0') rak++;
+            printf("%s\n", sr[i]);
+        }
     }
-    free(data);
+    //free(sr);
+    //send_ready_line* data = getData(body);
+    //for (int i = 0; ; i++) {
+    //    printf("%s\n", data[i]);
+    //    if (data[i][0] == ']') break;
+    //}
+    //free(data);
     //printf("Body:\n%s\n", body);
 
     return 0;

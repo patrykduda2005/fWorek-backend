@@ -1,11 +1,12 @@
 OBJECTS=$(patsubst %.c,%.o,$(wildcard *.c))
-LIBS=-lmysqlclient
+CFLAGS=-ggdb
+LIBS=-lmysqlclient -lssl
 
 exe: $(OBJECTS)
 	gcc $(OBJECTS) -o exe $(LIBS)
 
 %.o: %.c %.h
-	gcc -g -c $<
+	gcc $(CFLAGS) -c $<
 
 upload:
 	scp -P 11339 ./main.c frog@frog01.mikr.us:/home/frog/dziennik/main.c

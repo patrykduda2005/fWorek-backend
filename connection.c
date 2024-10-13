@@ -12,14 +12,16 @@
 #include "process_string.h"
 
 
-enum HTTP_METHOD {
-    GET_METHOD,
-    POST_METHOD
-};
 
-void receive_http_request(int sock);
-int determine_method(char* http_request);
-void body_sending(int connected_socket, send_ready_line* sr);
+
+void body_sending(int connected_socket, send_ready_line* sr) {
+    if (sr != NULL) {
+        for (int i = 0; sr[i][0] != '\0'; i++) {
+            send(connected_socket, sr[i], strlen(sr[i]), 0);
+        }
+    }
+    free(sr);
+}
 
 int setup_bind_and_listen_on_socket(int port) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -66,23 +68,4 @@ void receive_http_request(int sock) {
     close(connected_socket);
 }
 
-void body_sending(int connected_socket, send_ready_line* sr) {
-    for (int i = 0; sr[i][0] != '\0'; i++) {
-        send(connected_socket, sr[i], strlen(sr[i]), 0);
-    }
-    free(sr);
-}
 
-
-int determine_method(char* http_request) {
-    //-1 nothing, 1 GET, 2 POST
-    char method[10];
-    memset(method, 0, sizeof(method));
-    int i = 0;
-    for (; http_request[i] != ' ' && i < 10; i++);
-    if (i == 10) return -1;
-    strncpy(method, http_request, i);
-    if (strcmp(method, "GET") == 0) return GET_METHOD;
-    if (strcmp(method, "POST") == 0) return POST_METHOD;
-    return 0;
-}

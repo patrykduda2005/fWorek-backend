@@ -13,16 +13,6 @@
 
 
 
-
-void body_sending(int connected_socket, send_ready_line* sr) {
-    if (sr != NULL) {
-        for (int i = 0; sr[i][0] != '\0'; i++) {
-            send(connected_socket, sr[i], strlen(sr[i]), 0);
-        }
-    }
-    free(sr);
-}
-
 int setup_bind_and_listen_on_socket(int port) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -62,7 +52,7 @@ void receive_http_request(int sock) {
     }
     if (req_method >= 0 ) {
         send(connected_socket, hr.header, strlen(hr.header), 0);
-        body_sending(connected_socket, hr.body);
+        sr_sending(hr.body, connected_socket);
     }
 
     close(connected_socket);

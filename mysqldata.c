@@ -5,6 +5,7 @@
 #include "mysqldata.h"
 #include "mysqlcredentials.h"
 #include "logging.h"
+#include "send_ready.h"
 
 const char *field_names[5] = {
     "grupa",
@@ -14,42 +15,33 @@ const char *field_names[5] = {
     "opis"
 };
 
-send_ready_line* wrap_in_json(char ***data, int rowc) {
-    int field_lenght = strlen(field_names[0]) + strlen(field_names[1]) + strlen(field_names[2]) 
-        + strlen(field_names[3]) + strlen(field_names[4]);
+send_ready* wrap_in_json(char ***data, int rowc) {
     //5 fields
     messlog("Wrapping..");
 
-    send_ready_line* sr = malloc(sizeof(char) * LINESIZE * (rowc + 2 + 1));
-    memset(sr, 0, sizeof(*sr));
+    send_ready* sr = sr_init_json(rowc);
 
-    strcat(sr[0], "[");
     for (int row = 0; row < rowc; row++) {
-        char** row_of_data = data[row];
+        char send_ready_row[LINESIZE] = "";
+        int send_ready_row_index = 0;
 
-        int line_length = field_lenght + strlen(row_of_data[0]) + strlen(row_of_data[1]) 
-            + strlen(row_of_data[2]) + strlen(row_of_data[3]) + strlen(row_of_data[4]) + 8;
-        //if (LINESIZE > line_length) return NULL;
-
-        char* send_ready_row = sr[row + 1];
-        send_ready_row += sprintf(send_ready_row, "{");
+        send_ready_row_index += sprintf(send_ready_row + send_ready_row_index, "{");
         for (int i = 0; i < 5; i++) {
-            send_ready_row += sprintf(send_ready_row, "\"%s\": \"%s\"", field_names[i], data[row][i]);
+            send_ready_row_index += sprintf(send_ready_row + send_ready_row_index, "\"%s\": \"%s\"", field_names[i], data[row][i]);
             if (i != 4)
-                send_ready_row += sprintf(send_ready_row, ",");
+                send_ready_row_index += sprintf(send_ready_row + send_ready_row_index, ",");
         }
-        strcat(send_ready_row, "}"); send_ready_row++;
+        strcat(send_ready_row, "}"); send_ready_row_index++;
         if (row != rowc-1)
-            send_ready_row += sprintf(send_ready_row, ",");
+            send_ready_row_index += sprintf(send_ready_row + send_ready_row_index, ",");
+        sr_set_line(sr, send_ready_row, row + 1);
     }
-    sprintf(sr[rowc+1], "]");
-    sprintf(sr[rowc+2], "\0");
 
     messlog("Wrapping done");
     return sr;
 }
 
-send_ready_line* getData() {
+send_ready* getData() {
     MYSQL *sql = mysql_init(NULL);
     messlog("CRED: %s %s %s %s", host, user, passwd, db);
     MYSQL *conn = mysql_real_connect(sql, host, user, passwd, db, 0, NULL, 0);
@@ -67,16 +59,16 @@ send_ready_line* getData() {
     for (int i = 0; i < rowc; i++) {
         data[i] = mysql_fetch_row(res);
     }
-    send_ready_line* sr = wrap_in_json(data, rowc);
+    send_ready* sr = wrap_in_json(data, rowc);
     mysql_free_result(res);
     return sr;
 }
 
-send_ready_line* actually_inserting_data(char data[5][200]) {
+send_ready* actually_inserting_data(char data[5][200]) {
     MYSQL *sql = mysql_init(NULL);
     MYSQL *conn = mysql_real_connect(sql, host, user, passwd, db, 0, NULL, 0);
     if (conn == NULL) {
-        messlog("cannot connect to the database\n");
+        errorlog("cannot connect to the database\n");
         mysql_close(sql);
         return NULL;
     }
@@ -85,21 +77,19 @@ send_ready_line* actually_inserting_data(char data[5][200]) {
 
     int queryerr = mysql_query(sql, query);
     if (queryerr) {
-        messlog("Inserting not succesfull");
+        errorlog("Inserting not succesfull");
     }
     mysql_close(sql);
-    send_ready_line* sr = malloc(sizeof(char) * LINESIZE * 2);
-    memset(sr, 0, sizeof(sr));
+    send_ready* sr = sr_init(1);
     if (!queryerr) {
-        sprintf(sr[0], "OK\0");
+        sr_set_line(sr, "OK\0", 0);
     } else {
-        sprintf(sr[0], "NOT OK\0");
+        sr_set_line(sr, "NOT OK\0", 0);
     }
-    strcat(sr[1], "\0");
     return sr;
 }
 
-send_ready_line* insertData(char *body) {
+send_ready* insertData(char *body) {
     //name=wartosc&name=wartosc&name=wartosc
     int isvalue = 0;    // 0 - property, 1 - value
     int propertyindex = 0;
@@ -126,7 +116,7 @@ send_ready_line* insertData(char *body) {
     }
 
     
-    send_ready_line* sr = actually_inserting_data(mysql_ready);
+    send_ready* sr = actually_inserting_data(mysql_ready);
     return sr;
 
 }

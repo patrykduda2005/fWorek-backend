@@ -2,6 +2,7 @@
 #include <string.h>
 #include "process_string.h"
 #include "dziennik_fetch.h"
+#include "logging.h"
 #include "send_ready.h"
 #include "mysqldata.h"
 
@@ -21,20 +22,19 @@ void get_header(char* header) {
 }
 
 void process_get_method(struct http_response* hr) {
-    send_ready_line* sr_mysql = getData();
-    send_ready_line* vulc = getdziennik();
-    send_ready_line* sr = realloc(sr_mysql, sizeof(sr_mysql) + sizeof(vulc));
-    memcpy(sr + sizeof(sr_mysql), vulc, sizeof(vulc));
-    free(sr_mysql);
-    free(vulc);
+    send_ready* sr_mysql = getData();
+    send_ready* vulc = getdziennik();
+    send_ready* sr = sr_join_json(sr_mysql, vulc);
+    messlog("FS:");
+    sr_print(sr);
     get_header(hr->header);
-    hr->body = (send_ready_line*)sr;
+    hr->body = (send_ready*)sr;
 }
 
 void process_post_method(char* http_request, struct http_response* hr) {
-    send_ready_line* sr = insertData(get_body(http_request));
+    send_ready* sr = insertData(get_body(http_request));
     get_header(hr->header);
-    hr->body = (send_ready_line*) sr;
+    hr->body = (send_ready*)sr;
 }
 
 int determine_method(char* http_request) {

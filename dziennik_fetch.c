@@ -67,7 +67,7 @@ void renamePrzedmiot(char *buffer, char *olprzed) {
     else if (strcmp(olprzed, "Język angielski") == 0) {
         strcpy(buffer, "j_ang");
     }
-    else if (strcmp(olprzed, "J. niemiecki") == 0) {
+    else if (strcmp(olprzed, "Język niemiecki") == 0) {
         strcpy(buffer, "j_niemiecki");
     }
     else if (strcmp(olprzed, "Język polski") == 0) {
@@ -98,7 +98,9 @@ void renamePrzedmiot(char *buffer, char *olprzed) {
         strcpy(buffer, "j_polski");
     }
     else if (strcmp(olprzed, "Godzina z wychowawcą") == 0) {
-    strcpy(buffer, "gzw");
+        strcpy(buffer, "gzw");
+    } else {
+        errorlog("NOT IMPLEMENTED PRZEDMIOT: %s", olprzed);
     }
 }
 
@@ -119,11 +121,17 @@ struct data* reading(SSL* ssl) {
 
 
     char *body = strstr(string, "\r\n\r\n");
+    if (body[4] != '[') {
+        free(string);
+        errorlog("No permissions for VULCAN (wrong cookie probably)");
+        return NULL;
+    }
+
     cJSON *json = cJSON_Parse(body);
     int count = cJSON_GetArraySize(json);
     struct data *dane = calloc(count, sizeof(struct data));
     dane[0].count = count;
-    printf("JSON: %s\n", cJSON_PrintUnformatted(json));
+    //printf("JSON: %s\n", cJSON_PrintUnformatted(json));
     cJSON *el = NULL;
     int i = 0;
     cJSON_ArrayForEach(el, json) {
@@ -165,44 +173,42 @@ static const char *field_names[5] = {
     "data",
     "opis"
 };
-send_ready_line* putdatatosr(struct data* data) {
+send_ready* putdatatosr(struct data* data) {
     int rowc = data[0].count;
     //int field_lenght = strlen(field_names[0]) + strlen(field_names[1]) + strlen(field_names[2]) 
     //      + strlen(field_names[3]) + strlen(field_names[4]);
     //5 fields
     messlog("Wrapping..vulcan...");
 
-    send_ready_line* sr = malloc(sizeof(char) * LINESIZE * (rowc + 2 + 1));
-    memset(sr, 0, sizeof(*sr));
+    send_ready* sr = sr_init_json(rowc);
 
-    strcat(sr[0], "[");
     for (int row = 0; row < rowc; row++) {
-        char* send_ready_row = sr[row + 1];
-        send_ready_row += sprintf(send_ready_row, "{");
-        send_ready_row += sprintf(send_ready_row, "\"%s\": \"%s\"", field_names[0], data[row].grupa);
-        send_ready_row += sprintf(send_ready_row, "\"%s\": \"%s\"", field_names[1], data[row].przedmiot);
-        send_ready_row += sprintf(send_ready_row, "\"%s\": \"%s\"", field_names[2], data[row].typ);
-        send_ready_row += sprintf(send_ready_row, "\"%s\": \"%s\"", field_names[3], data[row].data);
-        send_ready_row += sprintf(send_ready_row, "\"%s\": \"%s\"", field_names[4], "Z VULCANA");
-        send_ready_row += sprintf(send_ready_row, ",");
+        char send_ready_row[LINESIZE] = "";
+        int send_ready_row_index = 0;
+        send_ready_row_index += sprintf(send_ready_row + send_ready_row_index, "{");
+        send_ready_row_index += sprintf(send_ready_row + send_ready_row_index, "\"%s\": \"%s\",", field_names[0], data[row].grupa);
+        send_ready_row_index += sprintf(send_ready_row + send_ready_row_index, "\"%s\": \"%s\",", field_names[1], data[row].przedmiot);
+        send_ready_row_index += sprintf(send_ready_row + send_ready_row_index, "\"%s\": \"%s\",", field_names[2], data[row].typ);
+        send_ready_row_index += sprintf(send_ready_row + send_ready_row_index, "\"%s\": \"%s\",", field_names[3], data[row].data);
+        send_ready_row_index += sprintf(send_ready_row + send_ready_row_index, "\"%s\": \"%s\"", field_names[4], "Z VULCANA");
+        send_ready_row_index += sprintf(send_ready_row + send_ready_row_index, "}");
         //for (int i = 0; i < 5; i++) {
         //    send_ready_row += sprintf(send_ready_row, "\"%s\": \"%s\"", field_names[i], data[row][i]);
         //    if (i != 4)
         //        send_ready_row += sprintf(send_ready_row, ",");
         //}
-        strcat(send_ready_row, "}"); send_ready_row++;
+        //strcat(send_ready_row, "}"); send_ready_row_index++;
         if (row != rowc-1)
-            send_ready_row += sprintf(send_ready_row, ",");
+            send_ready_row_index += sprintf(send_ready_row + send_ready_row_index, ",");
+        sr_set_line(sr, send_ready_row, row + 1);
     }
-    sprintf(sr[rowc+1], "]");
-    sprintf(sr[rowc+2], "\0");
 
     messlog("Wrapping done");
     return sr;
 }
 
 
-send_ready_line* getdziennik() {
+send_ready* getdziennik() {
     int sockfd;
     struct sockaddr_in server_addr;
     struct hostent *server;
@@ -267,7 +273,7 @@ send_ready_line* getdziennik() {
              "Cookie: EfebSsoCookie=%s;\r\n\r\n",
              path, czas, hostname, cookie);
 
-    messlog("REQUEST:\n %s", request);
+    //messlog("REQUEST:\n %s", request);
 
     // Send the GET request over SSL
     SSL_write(ssl, request, strlen(request));
@@ -276,7 +282,16 @@ send_ready_line* getdziennik() {
 
     // Receive the response and print it
     struct data *dane = reading(ssl);
-    send_ready_line* sr = putdatatosr(dane);
+    if (dane == NULL) {
+        free(dane);
+        SSL_shutdown(ssl);
+        SSL_free(ssl);
+        close(sockfd);
+        SSL_CTX_free(ctx);
+        EVP_cleanup();
+        return NULL;
+    }
+    send_ready* sr = putdatatosr(dane);
     free(dane);
 
 

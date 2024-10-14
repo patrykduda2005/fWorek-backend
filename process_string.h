@@ -3,7 +3,7 @@
 #include "send_ready.h"
 struct http_response {
     char header[1000];
-    send_ready_line* body;
+    send_ready* body;
 };
 enum HTTP_METHOD {
     GET_METHOD,

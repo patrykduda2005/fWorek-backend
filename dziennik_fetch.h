@@ -3,6 +3,6 @@
 
 
 #include "send_ready.h"
-send_ready_line* getdziennik();
+send_ready* getdziennik();
 
 #endif

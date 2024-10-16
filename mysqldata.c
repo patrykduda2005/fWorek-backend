@@ -104,10 +104,12 @@ send_ready* insertData(char *body) {
     int propertyindex = 0;
     char mysql_ready[5][200] = {"", "", "", "", ""};
     char temppropertyname[20];
+    memset(temppropertyname, 0, sizeof(temppropertyname));
     for (int i = 0; *body != '\0'; i++) {
         if (*body == '=') {
+            messlog("property: %s, %s", temppropertyname, field_names[propertyindex]);
             if (strcmp(temppropertyname, field_names[propertyindex]) != 0) {
-                errorlog("wrong format");
+                errorlog("wrong format: %s", temppropertyname);
                 send_ready* sr = sr_init(1);
                 sr_set_http_code(sr, 422);
                 return sr;

@@ -22,17 +22,52 @@ void get_header(char* header) {
 }
 
 void process_get_method(struct http_response* hr) {
+    send_ready* sr;
     send_ready* sr_mysql = getData();
+    if (sr_mysql == NULL) {
+        sr = sr_init(1);
+        sr_set_http_code(sr, 503);
+        sr_set_line(sr, "MYSQL", 0);
+        goto set;
+    }
     send_ready* vulc = getdziennik();
-    send_ready* sr = sr_join_json(sr_mysql, vulc);
+    if (vulc == NULL) {
+        sr = sr_init(1);
+        sr_set_http_code(sr, 503);
+        sr_set_line(sr, "VULCAN", 0);
+        goto set;
+    }
+    send_ready* join_sr = sr_join_json(sr_mysql, vulc);
+    if (join_sr == NULL) {
+        sr = sr_init(1);
+        sr_set_http_code(sr, 500);
+        sr_set_line(sr, "Joining error", 0);
+        sr_free(join_sr);
+        goto set;
+    }
+    sr = join_sr;
+set:
     messlog("FS:");
     sr_print(sr);
     get_header(hr->header);
     hr->body = (send_ready*)sr;
 }
 
+int verify_password(char *body) {
+    messlog("verify: %s", body);
+    if (strncmp(body, "YCWO", 4) == 0) {
+        return 1;
+    }
+    return 0;
+}
+
 void process_post_method(char* http_request, struct http_response* hr) {
-    send_ready* sr = insertData(get_body(http_request));
+    send_ready* sr;
+    if (!verify_password(strstr(http_request, "\r\n\r\n") + 4)) {
+        sr = sr_init(1);
+        sr_set_http_code(sr, 403);
+    } else 
+        sr = insertData(strstr(get_body(http_request), "\n") + 1);
     get_header(hr->header);
     hr->body = (send_ready*)sr;
 }

@@ -46,9 +46,12 @@ send_ready* getData() {
     messlog("CRED: %s %s %s %s", host, user, passwd, db);
     MYSQL *conn = mysql_real_connect(sql, host, user, passwd, db, 0, NULL, 0);
     if (conn == NULL) {
-        messlog("cannot connect to the database");
+        errorlog("cannot connect to the database");
+        send_ready* sr = sr_init(1);
+        sr_set_http_code(sr, 503);
+        sr_set_line(sr, "MYSQL CONNECT", 0);
         mysql_close(sql);
-        return NULL;
+        return sr;
     }
     mysql_query(conn, "SELECT `grupa`, `przedmiot`, `typ`, `data`, `opis` FROM `na_ocene`");
     MYSQL_RES *res = mysql_store_result(conn);
@@ -68,9 +71,12 @@ send_ready* actually_inserting_data(char data[5][200]) {
     MYSQL *sql = mysql_init(NULL);
     MYSQL *conn = mysql_real_connect(sql, host, user, passwd, db, 0, NULL, 0);
     if (conn == NULL) {
-        errorlog("cannot connect to the database\n");
+        errorlog("cannot connect to the database");
+        send_ready* sr = sr_init(1);
+        sr_set_http_code(sr, 503);
+        sr_set_line(sr, "MYSQL CONNECT", 0);
         mysql_close(sql);
-        return NULL;
+        return sr;
     }
     char query[300];
     sprintf(query,  "INSERT INTO `na_ocene` (`grupa`, `przedmiot`, `typ`, `data`, `opis`) VALUES ('%s', '%s', '%s', '%s', '%s')", data[0], data[1], data[2], data[3], data[4]);
@@ -78,14 +84,17 @@ send_ready* actually_inserting_data(char data[5][200]) {
     int queryerr = mysql_query(sql, query);
     if (queryerr) {
         errorlog("Inserting not succesfull");
+        send_ready* sr = sr_init(1);
+        sr_set_http_code(sr, 503);
+        sr_set_line(sr, "MYSQL INSERT", 0);
+        mysql_close(sql);
+        return sr;
     }
     mysql_close(sql);
     send_ready* sr = sr_init(1);
     if (!queryerr) {
         sr_set_line(sr, "OK\0", 0);
-    } else {
-        sr_set_line(sr, "NOT OK\0", 0);
-    }
+    } 
     return sr;
 }
 
@@ -97,6 +106,12 @@ send_ready* insertData(char *body) {
     char temppropertyname[20];
     for (int i = 0; *body != '\0'; i++) {
         if (*body == '=') {
+            if (strcmp(temppropertyname, field_names[propertyindex]) != 0) {
+                errorlog("wrong format");
+                send_ready* sr = sr_init(1);
+                sr_set_http_code(sr, 422);
+                return sr;
+            }
             memset(temppropertyname, 0, sizeof(temppropertyname));
             i = 0;
             isvalue = 1;

@@ -1,5 +1,5 @@
 OBJECTS=$(patsubst %.c,%.o,$(wildcard *.c))
-CFLAGS=-ggdb
+CFLAGS=-Wall -Wextra -ggdb
 LIBS=-lmysqlclient -lssl
 
 exe: $(OBJECTS)

@@ -10,6 +10,7 @@ typedef char send_ready_line[LINESIZE];
 struct send_ready{
     send_ready_line* srl;
     int lines_count;
+    int response_code;
 };
 
 send_ready* sr_init_json(int lines) {
@@ -21,12 +22,15 @@ send_ready* sr_init_json(int lines) {
         sr->lines_count,
         sizeof(char) * LINESIZE
     );
+    sr->response_code = 200;
     strcpy(sr->srl[0], "[");
     strcpy(sr->srl[lines + 1], "]\0");
     return sr;
 }
 
 send_ready* sr_init(int lines) {
+    if (lines <= 0)
+        errorlog("TOO LITTLE LINES");
     struct send_ready* sr = malloc(sizeof(struct send_ready));
 
     sr->lines_count = lines;
@@ -34,7 +38,16 @@ send_ready* sr_init(int lines) {
         sr->lines_count,
         sizeof(char) * LINESIZE
     );
+    sr->response_code = 200;
     return sr;
+}
+
+void sr_set_http_code(send_ready* sr, int code) {
+    if (code < 100 || code >= 600) {
+        errorlog("Wrong http code: %d", code);
+        return;
+    }
+    ((struct send_ready*)sr)->response_code = code;
 }
 
 void sr_set_line(send_ready* sr, char* line, int index) {
@@ -74,11 +87,37 @@ void sr_free(send_ready* sr) {
     free((struct send_ready*)sr);
 }
 
+void code_to_statusText(char *buffer, int code) {
+    switch (code) {
+        case 200:
+            strcpy(buffer, "OK");
+            break;
+        case 403:
+            strcpy(buffer, "Forbidden");
+            break;
+        case 422:
+            strcpy(buffer, "Unprocessable Content");
+            break;
+        case 500:
+            strcpy(buffer, "Internal Server Error");
+            break;
+        case 503:
+            strcpy(buffer, "Service Unavailable");
+            break;
+        default:
+            errorlog("STATUSTEXT NOT IMPLEMENTED: %d", code);
+    }
+}
+
 void sr_sending(send_ready* sr, int connected_socket) {
     struct send_ready* real_sr = (struct send_ready*) sr;
     if (real_sr != NULL) {
+        char statusText[50] = "";
+        code_to_statusText(statusText, real_sr->response_code);
+        char header[500] = "";
+        sprintf(header, "HTTP/1.1 %d %s\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: Content-Type\r\nAccess-Control-Allow-Methods: GET, POST\r\n\r\n", real_sr->response_code, statusText);
+        send(connected_socket, header, strlen(header), 0);
         for (int i = 0; i < real_sr->lines_count; i++) {
-            //messlog("LINE: %s", real_sr->srl[i]);
             send(connected_socket, real_sr->srl[i], strlen(real_sr->srl[i]), 0);
         }
     }

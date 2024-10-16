@@ -51,7 +51,6 @@ void receive_http_request(int sock) {
     
     }
     if (req_method >= 0 ) {
-        send(connected_socket, hr.header, strlen(hr.header), 0);
         sr_sending(hr.body, connected_socket);
     }
 

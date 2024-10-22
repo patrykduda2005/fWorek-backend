@@ -39,7 +39,7 @@ int main() {
     //get_body(body, mess);
     //insertData(body);
     struct http_response hr;
-    process_get_method(&hr, body);
+    process_get_method(&hr, mess);
     //sr_print(hr.body);
     //send_ready_line* sr = hr.body;
     //int rak = 0;

@@ -21,17 +21,6 @@ void get_header(char* header) {
     strcat(header, "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: Content-Type\r\nAccess-Control-Allow-Methods: GET, POST\r\n\r\n");
 }
 
-int verifyDataOdDataDo(char* body) {
-//dataOd=2024-09-30T22:00:00.000Z&dataDo=2024-10-31T22:59:59.999Z
-    int verification = 1;
-    //verification = !strncmp(body, "dataOd=", 7);
-    //body += 7;
-    //body += 4;
-    //verification = !strncmp(body, "-", 1);
-    //body += 3;
-    //verification = !strncmp(body, "-", 1);
-    return verification;
-}
 
 enum {
     BOTHFAULT,
@@ -52,14 +41,14 @@ void process_get_method(struct http_response* hr, char* http_request) {
         sr_set_http_code(sr_mysql, 503);
         sr_set_line(sr_mysql, "{\"grupa\": \"gr1\", \"przedmiot\": \"j_ang\", \"typ\": \"zadanie\", \"data\": \"2024-10-10\", \"opis\":\"MYSQL\"}", 1);
     }
-//    if (!verifyDataOdDataDo(strstr(http_request, "\r\n\r\n") + 4)) {
-//        sr = sr_init(1);
-//        sr_set_http_code(sr, 422);
-//        sr_set_line(sr, "DataOd DataDo wrong format", 0);
-//        sr_free(sr_mysql);
-//        goto set;
-//    }
-    send_ready* vulc = getdziennik();
+    send_ready* vulc = getdziennik(strstr(http_request, "\r\n\r\n") + 4);
+    if (sr_get_http_code(vulc) != 200) {
+        if (fault == MYSQLFAULT)
+            fault = BOTHFAULT;
+        else
+            fault = VULCANFAULT;
+    }
+
     if (vulc == NULL) {
         if (fault == MYSQLFAULT)
             fault = BOTHFAULT;
@@ -70,11 +59,6 @@ void process_get_method(struct http_response* hr, char* http_request) {
         sr_set_line(vulc, "{\"grupa\": \"gr1\", \"przedmiot\": \"j_ang\", \"typ\": \"zadanie\", \"data\": \"2024-10-10\", \"opis\":\"VULCAN\"}", 1);
     }
     sr_print(vulc);
-    // VULCAN
-    // [{..}]
-    // {grupa: fsdfa, }
-    // r.text()
-    // split(']')
     send_ready* join_sr;
     if (fault == BOTHFAULT) {
         join_sr = sr_init_json(1);

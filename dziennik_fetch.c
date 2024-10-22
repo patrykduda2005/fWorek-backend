@@ -207,8 +207,47 @@ send_ready* putdatatosr(struct data* data) {
     return sr;
 }
 
+int verifyDataOdDataDo(char* body) {
+//dataOd=2024-09-30T22:00:00.000Z&dataDo=2024-10-31T22:59:59.999Z
+    int verification = 1;
+    //dataOd=
+    verification = !strncmp(body, "dataOd=", 7);
+    body += 7;
+    //xxxx-
+    body += 4;
+    verification = !strncmp(body, "-", 1);
+    //xx-
+    body += 3;
+    verification = !strncmp(body, "-", 1);
+    //xxT
+    body += 3;
+    verification = !strncmp(body, "T", 1);
+    //xxxxxxxxxxxxZ&dataDo=
+    body += 13;
+    verification = !strncmp(body, "Z&dataDo=", 9);
+    //xxxx-
+    body += 4;
+    verification = !strncmp(body, "-", 1);
+    //xx-
+    body += 3;
+    verification = !strncmp(body, "-", 1);
+    //xxT
+    body += 3;
+    verification = !strncmp(body, "T", 1);
+    //xxxxxxxxxxxxZ
+    body += 13;
+    verification = !strncmp(body, "Z", 1);
+    return verification;
+}
 
-send_ready* getdziennik() {
+send_ready* getdziennik(char* body) {
+    messlog("Dziennik begg %s", body);
+    if (!verifyDataOdDataDo(body)) {
+        send_ready* sr = sr_init_json(1);
+        sr_set_http_code(sr, 422);
+        sr_set_line(sr, "{\"grupa\": \"gr1\", \"przedmiot\": \"j_ang\", \"typ\": \"zadanie\", \"data\": \"2024-10-10\", \"opis\":\"VULCAN DataOd\"}", 1);
+        return sr;
+    }
     int sockfd;
     struct sockaddr_in server_addr;
     struct hostent *server;

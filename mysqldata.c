@@ -50,7 +50,7 @@ send_ready* getData() {
         send_ready* sr = sr_init_json(1);
         sr_set_http_code(sr, 503);
         //sr_set_line(sr, "MYSQL CONNECT", 0);
-        sr_set_line(sr, "{\"grupa\": \"gr1\", \"przedmiot\": \"j_ang\", \"typ\": \"zadanie\", \"data\": \"2024-10-10\", \"opis\":\"MYSQL CONNECT\"}", 1);
+        sr_set_line(sr, "{\"grupa\": \"error\", \"przedmiot\": \"j_ang\", \"typ\": \"zadanie\", \"data\": \"2024-10-10\", \"opis\":\"MYSQL CONNECT\"}", 1);
         mysql_close(sql);
         return sr;
     }

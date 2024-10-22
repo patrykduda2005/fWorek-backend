@@ -245,7 +245,7 @@ send_ready* getdziennik(char* body) {
     if (!verifyDataOdDataDo(body)) {
         send_ready* sr = sr_init_json(1);
         sr_set_http_code(sr, 422);
-        sr_set_line(sr, "{\"grupa\": \"gr1\", \"przedmiot\": \"j_ang\", \"typ\": \"zadanie\", \"data\": \"2024-10-10\", \"opis\":\"VULCAN DataOd\"}", 1);
+        sr_set_line(sr, "{\"grupa\": \"error\", \"przedmiot\": \"j_ang\", \"typ\": \"zadanie\", \"data\": \"2024-10-10\", \"opis\":\"VULCAN DataOd\"}", 1);
         return sr;
     }
     int sockfd;

@@ -49,6 +49,9 @@ void sr_set_http_code(send_ready* sr, int code) {
     }
     ((struct send_ready*)sr)->response_code = code;
 }
+int sr_get_http_code(send_ready* sr) {
+    return ((struct send_ready*)sr)->response_code;
+}
 
 void sr_set_line(send_ready* sr, char* line, int index) {
     struct send_ready* real_sr = (struct send_ready*) sr;

@@ -44,6 +44,8 @@ void process_get_method(struct http_response* hr, char* http_request) {
     send_ready* sr;
     int fault = NOONEFAULT;
     send_ready* sr_mysql = getData();
+    if (sr_get_http_code(sr_mysql) != 200)
+        fault = MYSQLFAULT;
     if (sr_mysql == NULL) {
         fault = MYSQLFAULT;
         sr_mysql = sr_init_json(1);

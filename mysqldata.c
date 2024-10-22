@@ -47,9 +47,10 @@ send_ready* getData() {
     MYSQL *conn = mysql_real_connect(sql, host, user, passwd, db, 0, NULL, 0);
     if (conn == NULL) {
         errorlog("cannot connect to the database");
-        send_ready* sr = sr_init(1);
+        send_ready* sr = sr_init_json(1);
         sr_set_http_code(sr, 503);
-        sr_set_line(sr, "MYSQL CONNECT", 0);
+        //sr_set_line(sr, "MYSQL CONNECT", 0);
+        sr_set_line(sr, "{\"grupa\": \"gr1\", \"przedmiot\": \"j_ang\", \"typ\": \"zadanie\", \"data\": \"2024-10-10\", \"opis\":\"MYSQL CONNECT\"}", 1);
         mysql_close(sql);
         return sr;
     }
@@ -75,6 +76,7 @@ send_ready* actually_inserting_data(char data[5][200]) {
         send_ready* sr = sr_init(1);
         sr_set_http_code(sr, 503);
         sr_set_line(sr, "MYSQL CONNECT", 0);
+        //sr_set_line(sr, "{\"grupa\": \"gr1\", \"przedmiot\": \"j_ang\", \"typ\": \"zadanie\", \"data\": \"2024-10-10\", \"opis\":\"MYSQL CONNECT\"}", 1);
         mysql_close(sql);
         return sr;
     }
@@ -87,6 +89,7 @@ send_ready* actually_inserting_data(char data[5][200]) {
         send_ready* sr = sr_init(1);
         sr_set_http_code(sr, 503);
         sr_set_line(sr, "MYSQL INSERT", 0);
+        //sr_set_line(sr, "{\"grupa\": \"gr1\", \"przedmiot\": \"j_ang\", \"typ\": \"zadanie\", \"data\": \"2024-10-10\", \"opis\":\"MYSQL INSERT\"}", 1);
         mysql_close(sql);
         return sr;
     }

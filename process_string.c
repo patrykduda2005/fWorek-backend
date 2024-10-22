@@ -41,7 +41,7 @@ void process_get_method(struct http_response* hr, char* http_request) {
         sr_set_http_code(sr_mysql, 503);
         sr_set_line(sr_mysql, "{\"grupa\": \"error\", \"przedmiot\": \"j_ang\", \"typ\": \"zadanie\", \"data\": \"2024-10-10\", \"opis\":\"MYSQL\"}", 1);
     }
-    send_ready* vulc = getdziennik(strstr(http_request, "\r\n\r\n") + 4);
+    send_ready* vulc = getdziennik(strstr(http_request, "/?") + 2);
     if (sr_get_http_code(vulc) != 200) {
         if (fault == MYSQLFAULT)
             fault = BOTHFAULT;

@@ -21,23 +21,67 @@ void get_header(char* header) {
     strcat(header, "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: Content-Type\r\nAccess-Control-Allow-Methods: GET, POST\r\n\r\n");
 }
 
-void process_get_method(struct http_response* hr) {
+int verifyDataOdDataDo(char* body) {
+//dataOd=2024-09-30T22:00:00.000Z&dataDo=2024-10-31T22:59:59.999Z
+    int verification = 1;
+    //verification = !strncmp(body, "dataOd=", 7);
+    //body += 7;
+    //body += 4;
+    //verification = !strncmp(body, "-", 1);
+    //body += 3;
+    //verification = !strncmp(body, "-", 1);
+    return verification;
+}
+
+enum {
+    BOTHFAULT,
+    VULCANFAULT,
+    MYSQLFAULT,
+    NOONEFAULT
+};
+
+void process_get_method(struct http_response* hr, char* http_request) {
     send_ready* sr;
+    int fault = NOONEFAULT;
     send_ready* sr_mysql = getData();
     if (sr_mysql == NULL) {
-        sr = sr_init(1);
+        fault = MYSQLFAULT;
+        sr_mysql = sr_init_json(1);
         sr_set_http_code(sr, 503);
-        sr_set_line(sr, "MYSQL", 0);
-        goto set;
+        sr_set_line(sr, "{grupa: \"gr1\", przedmiot: \"j_ang\", typ: \"zadanie\", data: \"2024-10-10\", opis:\"MYSQL\"}", 1);
     }
+//    if (!verifyDataOdDataDo(strstr(http_request, "\r\n\r\n") + 4)) {
+//        sr = sr_init(1);
+//        sr_set_http_code(sr, 422);
+//        sr_set_line(sr, "DataOd DataDo wrong format", 0);
+//        sr_free(sr_mysql);
+//        goto set;
+//    }
     send_ready* vulc = getdziennik();
     if (vulc == NULL) {
-        sr = sr_init(1);
+        if (fault == MYSQLFAULT)
+            fault = BOTHFAULT;
+        else
+            fault = VULCANFAULT;
+        vulc = sr_init_json(1);
         sr_set_http_code(sr, 503);
-        sr_set_line(sr, "VULCAN", 0);
-        goto set;
+        sr_set_line(sr, "{grupa: \"gr1\", przedmiot: \"j_ang\", typ: \"zadanie\", data: \"2024-10-10\", opis:\"VULCAN\"}", 1);
     }
-    send_ready* join_sr = sr_join_json(sr_mysql, vulc);
+    // VULCAN
+    // [{..}]
+    // {grupa: fsdfa, }
+    // r.text()
+    // split(']')
+    send_ready* join_sr;
+    if (fault == BOTHFAULT) {
+        join_sr = sr_init_json(1);
+        sr_set_http_code(sr, 503);
+        sr_set_line(sr, "{grupa: \"gr1\", przedmiot: \"j_ang\", typ: \"zadanie\", data: \"2024-10-10\", opis:\"MYSQL i VULCAN\"}", 1);
+    } else if (fault != VULCANFAULT)
+        join_sr = sr_join_json(sr_mysql, vulc);
+    else 
+        join_sr = sr_join_json(vulc, sr_mysql);
+
     if (join_sr == NULL) {
         sr = sr_init(1);
         sr_set_http_code(sr, 500);

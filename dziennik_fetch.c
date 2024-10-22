@@ -214,6 +214,11 @@ send_ready* getdziennik() {
     struct hostent *server;
     const char *hostname = "uczen.eduvulcan.pl";
     const char *path = "/powiatlezajski/api/a5371f1b-db92-48a5-88e8-604c716c36a3?key=TVRrMU5UVXRNak0wTnkweExUUT0";
+    /*
+     * 
+     * dataOd=2024-09-30T22:00:00.000Z&dataDo=2024-10-31T22:59:59.999Z
+     * 
+    */
     const char *czas = "&dataOd=2024-09-30T22:00:00.000Z&dataDo=2024-10-31T22:59:59.999Z";
     int port = 443;  // HTTPS port 443
     char request[1024];

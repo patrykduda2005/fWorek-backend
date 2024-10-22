@@ -43,7 +43,7 @@ void receive_http_request(int sock) {
     memset(hr.header, 0, sizeof(hr.header));
     switch (req_method) {
         case GET_METHOD:
-            process_get_method(&hr);
+            process_get_method(&hr, rec);
             break;
         case POST_METHOD:
             process_post_method(rec, &hr);

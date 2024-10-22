@@ -87,6 +87,7 @@ void sr_free(send_ready* sr) {
     free((struct send_ready*)sr);
 }
 
+
 void code_to_statusText(char *buffer, int code) {
     switch (code) {
         case 200:

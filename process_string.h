@@ -10,7 +10,7 @@ enum HTTP_METHOD {
     POST_METHOD
 };
 
-void process_get_method(struct http_response* hr);
+void process_get_method(struct http_response* hr, char* http_request);
 void process_post_method(char* http_request, struct http_response* hr);
 int determine_method(char* http_request);
 

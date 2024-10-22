@@ -258,7 +258,10 @@ send_ready* getdziennik(char* body) {
      * dataOd=2024-09-30T22:00:00.000Z&dataDo=2024-10-31T22:59:59.999Z
      * 
     */
-    const char *czas = "&dataOd=2024-09-30T22:00:00.000Z&dataDo=2024-10-31T22:59:59.999Z";
+    //const char *czas = "&dataOd=2024-09-30T22:00:00.000Z&dataDo=2024-10-31T22:59:59.999Z";
+    char czas[200] = "&";
+    strcpy(czas + 1, body);
+
     int port = 443;  // HTTPS port 443
     char request[1024];
 

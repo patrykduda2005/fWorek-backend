@@ -237,7 +237,7 @@ int verifyDataOdDataDo(char* body) {
     //xxxxxxxxxxxxZ
     body += 13;
     verification = !strncmp(body, "Z", 1);
-    return verification;
+    return 1;
 }
 
 send_ready* getdziennik(char* body) {

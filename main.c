@@ -10,7 +10,7 @@
 #include "connection.h"
 
 
-#define CONNECT 0
+#define CONNECT 1
 
 int main() {
     init_signal();
@@ -39,7 +39,7 @@ int main() {
     //get_body(body, mess);
     //insertData(body);
     struct http_response hr;
-    process_get_method(&hr);
+    process_get_method(&hr, body);
     //sr_print(hr.body);
     //send_ready_line* sr = hr.body;
     //int rak = 0;

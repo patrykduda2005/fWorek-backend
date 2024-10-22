@@ -59,7 +59,7 @@ void sr_set_line(send_ready* sr, char* line, int index) {
     }
 
     if (index >= real_sr->lines_count || index < 0) {
-        errorlog("Cannot change that index of 'send_ready'");
+        errorlog("Cannot change that index of 'send_ready', %d", real_sr->lines_count);
         return;
     }
 

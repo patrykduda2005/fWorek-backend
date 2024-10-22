@@ -47,8 +47,8 @@ void process_get_method(struct http_response* hr, char* http_request) {
     if (sr_mysql == NULL) {
         fault = MYSQLFAULT;
         sr_mysql = sr_init_json(1);
-        sr_set_http_code(sr, 503);
-        sr_set_line(sr, "{grupa: \"gr1\", przedmiot: \"j_ang\", typ: \"zadanie\", data: \"2024-10-10\", opis:\"MYSQL\"}", 1);
+        sr_set_http_code(sr_mysql, 503);
+        sr_set_line(sr_mysql, "{\"grupa\": \"gr1\", \"przedmiot\": \"j_ang\", \"typ\": \"zadanie\", \"data\": \"2024-10-10\", \"opis\":\"MYSQL\"}", 1);
     }
 //    if (!verifyDataOdDataDo(strstr(http_request, "\r\n\r\n") + 4)) {
 //        sr = sr_init(1);
@@ -64,9 +64,10 @@ void process_get_method(struct http_response* hr, char* http_request) {
         else
             fault = VULCANFAULT;
         vulc = sr_init_json(1);
-        sr_set_http_code(sr, 503);
-        sr_set_line(sr, "{grupa: \"gr1\", przedmiot: \"j_ang\", typ: \"zadanie\", data: \"2024-10-10\", opis:\"VULCAN\"}", 1);
+        sr_set_http_code(vulc, 503);
+        sr_set_line(vulc, "{\"grupa\": \"gr1\", \"przedmiot\": \"j_ang\", \"typ\": \"zadanie\", \"data\": \"2024-10-10\", \"opis\":\"VULCAN\"}", 1);
     }
+    sr_print(vulc);
     // VULCAN
     // [{..}]
     // {grupa: fsdfa, }
@@ -75,8 +76,8 @@ void process_get_method(struct http_response* hr, char* http_request) {
     send_ready* join_sr;
     if (fault == BOTHFAULT) {
         join_sr = sr_init_json(1);
-        sr_set_http_code(sr, 503);
-        sr_set_line(sr, "{grupa: \"gr1\", przedmiot: \"j_ang\", typ: \"zadanie\", data: \"2024-10-10\", opis:\"MYSQL i VULCAN\"}", 1);
+        sr_set_http_code(join_sr, 503);
+        sr_set_line(join_sr, "{\"grupa\": \"gr1\", \"przedmiot\": \"j_ang\", \"typ\": \"zadanie\", \"data\": \"2024-10-10\", \"opis\":\"MYSQL i VULCAN\"}", 1);
     } else if (fault != VULCANFAULT)
         join_sr = sr_join_json(sr_mysql, vulc);
     else 

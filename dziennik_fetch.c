@@ -252,7 +252,7 @@ send_ready* getdziennik(char* body) {
     struct sockaddr_in server_addr;
     struct hostent *server;
     const char *hostname = "uczen.eduvulcan.pl";
-    const char *path = "/powiatlezajski/api/a5371f1b-db92-48a5-88e8-604c716c36a3?key=TVRrMU5UVXRNak0wTnkweExUUT0";
+    const char *path = "/powiatlezajski/api/SprawdzianyZadaniaDomowe?key=TVRrMU5UVXRNak0wTnkweExUUT0";
     /*
      * 
      * dataOd=2024-09-30T22:00:00.000Z&dataDo=2024-10-31T22:59:59.999Z

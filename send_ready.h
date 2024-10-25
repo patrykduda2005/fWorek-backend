@@ -6,7 +6,6 @@
 
 
 typedef void send_ready;
-typedef char send_ready_line[LINESIZE];
 
 send_ready* sr_init_json(int lines);
 send_ready* sr_init(int lines);
@@ -17,5 +16,6 @@ void sr_print(send_ready* sr);
 send_ready* sr_join_json(send_ready* lhs, send_ready* rhs);
 void sr_free(send_ready* sr);
 void sr_sending(send_ready* sr, int connected_socket);
+send_ready* sr_init_error_json(int errorcode, char* errordesc);
 
 #endif

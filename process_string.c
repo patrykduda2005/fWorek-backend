@@ -33,51 +33,42 @@ void process_get_method(struct http_response* hr, char* http_request) {
     send_ready* sr;
     int fault = NOONEFAULT;
     send_ready* sr_mysql = getData();
-    if (sr_get_http_code(sr_mysql) != 200)
-        fault = MYSQLFAULT;
     if (sr_mysql == NULL) {
         fault = MYSQLFAULT;
-        sr_mysql = sr_init_json(1);
-        sr_set_http_code(sr_mysql, 503);
-        sr_set_line(sr_mysql, "{\"grupa\": \"error\", \"przedmiot\": \"j_ang\", \"typ\": \"zadanie\", \"data\": \"2024-10-10\", \"opis\":\"MYSQL\"}", 1);
+        sr_mysql = sr_init_error_json(503, "MYSQL");
     }
+    if (sr_get_http_code(sr_mysql) != 200)
+        fault = MYSQLFAULT;
+
     send_ready* vulc = getdziennik(strstr(http_request, "/?") + 2);
-    if (sr_get_http_code(vulc) != 200) {
-        if (fault == MYSQLFAULT)
-            fault = BOTHFAULT;
-        else
+    if (vulc == NULL) {
+        if (fault == NOONEFAULT)
             fault = VULCANFAULT;
+        else
+            fault = BOTHFAULT;
+        vulc = sr_init_error_json(503, "VULCAN");
+    }
+    if (sr_get_http_code(vulc) != 200) {
+        if (fault == NOONEFAULT)
+            fault = VULCANFAULT;
+        else
+            fault = BOTHFAULT;
     }
 
-    if (vulc == NULL) {
-        if (fault == MYSQLFAULT)
-            fault = BOTHFAULT;
-        else
-            fault = VULCANFAULT;
-        vulc = sr_init_json(1);
-        sr_set_http_code(vulc, 503);
-        sr_set_line(vulc, "{\"grupa\": \"error\", \"przedmiot\": \"j_ang\", \"typ\": \"zadanie\", \"data\": \"2024-10-10\", \"opis\":\"VULCAN\"}", 1);
-    }
-    sr_print(vulc);
     send_ready* join_sr;
     if (fault == BOTHFAULT) {
-        join_sr = sr_init_json(1);
-        sr_set_http_code(join_sr, 503);
-        sr_set_line(join_sr, "{\"grupa\": \"error\", \"przedmiot\": \"j_ang\", \"typ\": \"zadanie\", \"data\": \"2024-10-10\", \"opis\":\"MYSQL i VULCAN\"}", 1);
-    } else if (fault != VULCANFAULT)
+        join_sr = sr_init_error_json(503, "MYSQL i VULCAN");
+    } else if (fault == MYSQLFAULT || NOONEFAULT)
         join_sr = sr_join_json(sr_mysql, vulc);
     else 
         join_sr = sr_join_json(vulc, sr_mysql);
 
     if (join_sr == NULL) {
-        sr = sr_init(1);
-        sr_set_http_code(sr, 500);
-        sr_set_line(sr, "Joining error", 0);
+        sr = sr_init_error_json(500, "Joining error");
         sr_free(join_sr);
-        goto set;
-    }
-    sr = join_sr;
-set:
+    } else
+        sr = join_sr;
+
     messlog("FS:");
     sr_print(sr);
     get_header(hr->header);

@@ -243,9 +243,7 @@ int verifyDataOdDataDo(char* body) {
 send_ready* getdziennik(char* body) {
     messlog("Dziennik begg %s", body);
     if (!verifyDataOdDataDo(body)) {
-        send_ready* sr = sr_init_json(1);
-        sr_set_http_code(sr, 422);
-        sr_set_line(sr, "{\"grupa\": \"error\", \"przedmiot\": \"j_ang\", \"typ\": \"zadanie\", \"data\": \"2024-10-10\", \"opis\":\"VULCAN DataOd\"}", 1);
+        send_ready* sr = sr_init_error_json(422, "VULCAN zly format zakresu dat");
         return sr;
     }
     int sockfd;

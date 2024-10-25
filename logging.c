@@ -22,5 +22,5 @@ void errorlog(char* format, ...) {
     va_end(args);
     const time_t the_time = time(0);
     struct tm* curr = localtime(&the_time);
-    printf("ERROR: [%d.%d.%d %d:%d]: %s\n", curr->tm_mday, curr->tm_mon + 1, curr->tm_year + 1900, curr->tm_hour, curr->tm_min, mess);
+    printf("\e[31mERROR: [%d.%d.%d %d:%d]: %s\e[0m\n", curr->tm_mday, curr->tm_mon + 1, curr->tm_year + 1900, curr->tm_hour, curr->tm_min, mess);
 }

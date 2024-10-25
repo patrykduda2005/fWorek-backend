@@ -50,7 +50,9 @@ void sr_set_http_code(send_ready* sr, int code) {
     ((struct send_ready*)sr)->response_code = code;
 }
 int sr_get_http_code(send_ready* sr) {
-    return ((struct send_ready*)sr)->response_code;
+    if (sr != NULL)
+        return ((struct send_ready*)sr)->response_code;
+    else return -1;
 }
 
 void sr_set_line(send_ready* sr, char* line, int index) {
@@ -88,6 +90,22 @@ void sr_print(send_ready* sr) {
 void sr_free(send_ready* sr) {
     free(((struct send_ready*)sr)->srl);
     free((struct send_ready*)sr);
+}
+
+send_ready* sr_init_error_json(int errorcode, char* errordesc) {
+    int templatesize = 92;
+    send_ready* sr = sr_init_json(1);
+    if (templatesize + strlen(errordesc) > LINESIZE) {
+        errorlog("Error (%s) is to long. Max length is %d", errordesc, LINESIZE - templatesize);
+        sr_set_http_code(sr, 500);
+        sr_set_line(sr, "{\"grupa\": \"error\", \"przedmiot\": \"j_ang\", \"typ\": \"zadanie\", \"data\": \"2024-10-10\", \"opis\":\"Error description too long\"}", 1);
+        return sr;
+    }
+    sr_set_http_code(sr, errorcode);
+    char errorline[LINESIZE] = "";
+    sprintf(errorline, "{\"grupa\": \"error\", \"przedmiot\": \"j_ang\", \"typ\": \"zadanie\", \"data\": \"2024-10-10\", \"opis\":\"%s\"}", errordesc);
+    sr_set_line(sr, errorline, 1);
+    return sr;
 }
 
 

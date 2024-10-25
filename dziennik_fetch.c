@@ -245,6 +245,15 @@ int verifyDataOdDataDo(char* body) {
     return 1;
 }
 
+void jslike_fetch_get_with_ssl(char* buffer, char* url, char* additional_headers) {
+    messlog("Fetching from %s", url);
+    int sockfd;
+    struct sockaddr_in server_addr;
+    struct hostent *server;
+    const char *hostname = "uczen.eduvulcan.pl";
+    const char *path = "/powiatlezajski/api/SprawdzianyZadaniaDomowe?key=TVRrMU5UVXRNak0wTnkweExUUT0";
+}
+
 send_ready* getdziennik(char* body) {
     messlog("Getting dziennik...");
     if (!verifyDataOdDataDo(body)) {

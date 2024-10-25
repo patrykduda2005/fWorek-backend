@@ -21,6 +21,11 @@ struct data {
 
 void getcookie(char *buffer) {
     FILE *fd = fopen("cookie", "r");
+    if (fd == NULL) {
+        errorlog("Plik 'cookie' nie istnieje");
+        strcpy(buffer, "cokolwiek\0");
+        return;
+    }
     fgets(buffer, 1024, fd);
     char *new_line = strstr(buffer, "\n");
     if (new_line != NULL) memset(new_line, 0, 1);
@@ -241,7 +246,7 @@ int verifyDataOdDataDo(char* body) {
 }
 
 send_ready* getdziennik(char* body) {
-    messlog("Dziennik begg %s", body);
+    messlog("Getting dziennik...");
     if (!verifyDataOdDataDo(body)) {
         send_ready* sr = sr_init_error_json(422, "VULCAN zly format zakresu dat");
         return sr;
@@ -256,7 +261,6 @@ send_ready* getdziennik(char* body) {
      * dataOd=2024-09-30T22:00:00.000Z&dataDo=2024-10-31T22:59:59.999Z
      * 
     */
-    //const char *czas = "&dataOd=2024-09-30T22:00:00.000Z&dataDo=2024-10-31T22:59:59.999Z";
     char czas[200] = "&";
     strcpy(czas + 1, body);
     strtok(czas, "H");

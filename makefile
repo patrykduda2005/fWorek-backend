@@ -1,18 +1,19 @@
 OBJECTS=$(patsubst %.c,%.o,$(wildcard *.c))
+OBJFOLDER=./obj/
 CFLAGS=-Wall -Wextra -ggdb
 LIBS=-lmysqlclient -lssl
 
-exe: $(OBJECTS)
-	gcc $(OBJECTS) -o exe $(LIBS)
+exe: $(OBJECTS:%=$(OBJFOLDER)%)
+	gcc $(OBJECTS:%=$(OBJFOLDER)%) -o exe $(LIBS)
 
-%.o: %.c %.h
+$(OBJFOLDER)%.o: %.c %.h 
 	gcc $(CFLAGS) -c $<
+	@[ -d $(OBJFOLDER) ] || mkdir obj
+	@mv *.o $(OBJFOLDER)
 
-upload:
-	scp -P 11339 ./main.c frog@frog01.mikr.us:/home/frog/dziennik/main.c
-	scp -P 11339 ./makefile frog@frog01.mikr.us:/home/frog/dziennik/makefile
-	scp -P 11339 ./mysqldata.c frog@frog01.mikr.us:/home/frog/dziennik/mysqldata.c
-	scp -P 11339 ./mysqldata.h frog@frog01.mikr.us:/home/frog/dziennik/mysqldata.h
+$(OBJFOLDER)main.o: main.c
+	gcc $(CFLAGS) -c main.c
+	mv main.o $(OBJFOLDER)
 
 clean:
-	rm *.o exe
+	rm $(OBJFOLDER)*.o *.o exe

@@ -6,6 +6,7 @@
 #include <netdb.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <regex.h>
 #include "cJSON.h"
 #include "logging.h"
 #include "send_ready.h"
@@ -19,17 +20,18 @@ struct data {
 };
 
 
-void getcookie(char *buffer) {
+int getcookie(char *buffer) {
     FILE *fd = fopen("cookie", "r");
     if (fd == NULL) {
         errorlog("Plik 'cookie' nie istnieje");
         strcpy(buffer, "cokolwiek\0");
-        return;
+        return -1;
     }
     fgets(buffer, 1024, fd);
     char *new_line = strstr(buffer, "\n");
     if (new_line != NULL) memset(new_line, 0, 1);
     fclose(fd);
+    return 0;
 }
 
 void typtostring(char *buffer, int typ) {
@@ -116,7 +118,6 @@ struct data* reading(SSL* ssl) {
     char buffer[4096];
     int bytes_received;
     while ((bytes_received = SSL_read(ssl, buffer, sizeof(buffer) - 1)) > 0) {
-        messlog("fsda");
         string = realloc(string, string_length + 1);
         buffer[bytes_received] = '\0';  // Null-terminate the buffer
         //printf("%s\n", buffer);
@@ -214,35 +215,33 @@ send_ready* putdatatosr(struct data* data) {
 
 int verifyDataOdDataDo(char* body) {
 //dataOd=2024-09-30T22:00:00.000Z&dataDo=2024-10-31T22:59:59.999Z
-    int verification = 1;
-    //dataOd=
-    verification = !strncmp(body, "dataOd=", 7);
-    body += 7;
-    //xxxx-
-    body += 4;
-    verification = !strncmp(body, "-", 1);
-    //xx-
-    body += 3;
-    verification = !strncmp(body, "-", 1);
-    //xxT
-    body += 3;
-    verification = !strncmp(body, "T", 1);
-    //xxxxxxxxxxxxZ&dataDo=
-    body += 13;
-    verification = !strncmp(body, "Z&dataDo=", 9);
-    //xxxx-
-    body += 4;
-    verification = !strncmp(body, "-", 1);
-    //xx-
-    body += 3;
-    verification = !strncmp(body, "-", 1);
-    //xxT
-    body += 3;
-    verification = !strncmp(body, "T", 1);
-    //xxxxxxxxxxxxZ
-    body += 13;
-    verification = !strncmp(body, "Z", 1);
-    return 1;
+    char temp[100] = "";
+    strncpy(temp, body, 100);
+    char* temp_end = strstr(temp, " ");
+    *temp_end = '\0';
+    regex_t regex;
+    int reti = regcomp(&regex, 
+        "dataOd=[0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}T[0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\.[0-9]\\{3\\}Z"
+       "&dataDo=[0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}T[0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\.[0-9]\\{3\\}Z", 0);
+    if (reti) {
+        errorlog("Regex sie nie skompilowal");
+        regfree(&regex);
+        return -1;
+    }
+
+    reti = regexec(&regex, temp, 0, NULL, 0);
+    if (reti == REG_NOMATCH) {
+        errorlog("Brak matchu: %s", temp);
+        regfree(&regex);
+        return 0;
+    } else if (!reti) {
+        regfree(&regex);
+        return 1;
+    } else {
+        errorlog("Cos sie innego stalo z regexem: %s", temp);
+        regfree(&regex);
+        return 0;
+    }
 }
 
 void jslike_fetch_get_with_ssl(char* buffer, char* url, char* additional_headers) {
@@ -256,7 +255,12 @@ void jslike_fetch_get_with_ssl(char* buffer, char* url, char* additional_headers
 
 send_ready* getdziennik(char* body) {
     messlog("Getting dziennik...");
-    if (!verifyDataOdDataDo(body)) {
+    int zakresverification;
+    if ((zakresverification = verifyDataOdDataDo(body)) != 1) {
+        if (zakresverification == -1) {
+            send_ready* sr = sr_init_error_json(500, "REGEX sie zepsul :(");
+            return sr;
+        }
         send_ready* sr = sr_init_error_json(422, "VULCAN zly format zakresu dat");
         return sr;
     }
@@ -272,7 +276,7 @@ send_ready* getdziennik(char* body) {
     */
     char czas[200] = "&";
     strcpy(czas + 1, body);
-    strtok(czas, "H");
+    strtok(czas, "H"); //to HTTP 1.1/
     messlog("CZAS: %s", czas);
 
     int port = 443;  // HTTPS port 443
@@ -323,7 +327,11 @@ send_ready* getdziennik(char* body) {
     }
 
     char cookie[1024] = "";
-    getcookie(cookie);
+    if (getcookie(cookie) == -1) {
+        send_ready* sr = sr_init_error_json(500, "Plik z tokenem nie istnieje");
+        return sr;
+    }
+    
 
     // Create the GET request
     snprintf(request, sizeof(request),
@@ -349,7 +357,8 @@ send_ready* getdziennik(char* body) {
         close(sockfd);
         SSL_CTX_free(ctx);
         EVP_cleanup();
-        return NULL;
+        send_ready* sr = sr_init_error_json(503, "No permission for VULCAN");
+        return sr;
     }
     send_ready* sr = putdatatosr(dane);
     free(dane);

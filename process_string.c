@@ -35,7 +35,7 @@ void process_get_method(struct http_response* hr, char* http_request) {
     send_ready* sr_mysql = getData();
     if (sr_mysql == NULL) {
         fault = MYSQLFAULT;
-        sr_mysql = sr_init_error_json(503, "MYSQL");
+        sr_mysql = sr_init_error_json(503, "MYSQL sie zepsul");
     }
     if (sr_get_http_code(sr_mysql) != 200)
         fault = MYSQLFAULT;
@@ -44,21 +44,26 @@ void process_get_method(struct http_response* hr, char* http_request) {
     if (vulc == NULL) {
         if (fault == NOONEFAULT)
             fault = VULCANFAULT;
-        else
+        else if (fault != VULCANFAULT)
             fault = BOTHFAULT;
-        vulc = sr_init_error_json(503, "VULCAN");
+        vulc = sr_init_error_json(503, "VULCAN sie zepsul");
     }
     if (sr_get_http_code(vulc) != 200) {
         if (fault == NOONEFAULT)
             fault = VULCANFAULT;
-        else
+        else if (fault != VULCANFAULT)
             fault = BOTHFAULT;
     }
-
+    switch (fault) {
+        case BOTHFAULT: errorlog("BOTHFAULT"); break;
+        case VULCANFAULT: errorlog("VULCANFAULT"); break;
+        case MYSQLFAULT: errorlog("MYSQLFAULT"); break;
+        case NOONEFAULT: messlog("NOONEFAULT"); break;
+    }
     send_ready* join_sr;
     if (fault == BOTHFAULT) {
         join_sr = sr_init_error_json(503, "MYSQL i VULCAN");
-    } else if (fault == MYSQLFAULT || NOONEFAULT)
+    } else if (fault == MYSQLFAULT || fault == NOONEFAULT)
         join_sr = sr_join_json(sr_mysql, vulc);
     else 
         join_sr = sr_join_json(vulc, sr_mysql);

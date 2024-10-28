@@ -12,7 +12,6 @@
 #include "process_string.h"
 
 
-
 int setup_bind_and_listen_on_socket(int port) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
 

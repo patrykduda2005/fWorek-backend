@@ -40,7 +40,7 @@ void process_get_method(struct http_response* hr, char* http_request) {
     if (sr_get_http_code(sr_mysql) != 200)
         fault = MYSQLFAULT;
 
-    send_ready* vulc = getdziennik(strstr(http_request, "/?") + 2);
+    send_ready* vulc = getdziennik(strstr(http_request, "/") + 2);
     if (vulc == NULL) {
         if (fault == NOONEFAULT)
             fault = VULCANFAULT;

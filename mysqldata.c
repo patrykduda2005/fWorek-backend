@@ -143,7 +143,7 @@ send_ready* actually_inserting_data(char data[5][200]) {
     mysql_close(sql);
     send_ready* sr = sr_init_json(1);
     if (!queryerr) {
-        sr_set_line(sr, "{'typ': 'ok', 'opis': 'OK'}", 1);
+        sr_set_line(sr, "{\"typ\": \"ok\", \"opis\": \"OK\"}", 1);
     } 
     return sr;
 }

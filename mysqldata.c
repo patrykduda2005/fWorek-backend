@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <regex.h>
 #include "mysqldata.h"
 #include "mysqlcredentials.h"
 #include "logging.h"
@@ -41,7 +42,47 @@ send_ready* wrap_in_json(char ***data, int rowc) {
     return sr;
 }
 
-send_ready* getData() {
+int verifyDataOdDataDoo(char* get_data) {
+//dataOd=2024-09-30T22:00:00.000Z&dataDo=2024-10-31T22:59:59.999Z
+    char temp[100] = "";
+    strncpy(temp, get_data, 100);
+    char* temp_end = strstr(temp, " ");
+    *temp_end = '\0';
+    regex_t regex;
+    int reti = regcomp(&regex, 
+        "dataOd=[0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}T[0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\.[0-9]\\{3\\}Z"
+       "&dataDo=[0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}T[0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\.[0-9]\\{3\\}Z", 0);
+    if (reti) {
+        errorlog("Regex sie nie skompilowal");
+        regfree(&regex);
+        return -1;
+    }
+
+    reti = regexec(&regex, temp, 0, NULL, 0);
+    if (reti == REG_NOMATCH) {
+        errorlog("Brak matchu: %s", temp);
+        regfree(&regex);
+        return 0;
+    } else if (!reti) {
+        regfree(&regex);
+        return 1;
+    } else {
+        errorlog("Cos sie innego stalo z regexem: %s", temp);
+        regfree(&regex);
+        return 0;
+    }
+}
+
+send_ready* getData(char *http_request) {
+    int zakresverification;
+    if ((zakresverification = verifyDataOdDataDoo(strstr(http_request, "/") + 2)) != 1) {
+        if (zakresverification == -1) {
+            send_ready* sr = sr_init_error_json(500, "REGEX sie zepsul :(");
+            return sr;
+        }
+        send_ready* sr = sr_init_error_json(422, "Dziennik zly format zakresu dat");
+        return sr;
+    }
     MYSQL *sql = mysql_init(NULL);
     messlog("CRED: %s %s %s %s", host, user, passwd, db);
     MYSQL *conn = mysql_real_connect(sql, host, user, passwd, db, 0, NULL, 0);
@@ -51,10 +92,25 @@ send_ready* getData() {
         mysql_close(sql);
         return sr;
     }
-    mysql_query(conn, "SELECT `grupa`, `przedmiot`, `typ`, `data`, `opis` FROM `na_ocene`");
+
+    char dataOd[200] = "";
+    strncpy(dataOd, strstr(http_request, "=") + 1, sizeof(dataOd));
+    char dataDo[100] = "";
+    strncpy(dataDo, strstr(dataOd, "=")+1, sizeof(dataDo));
+    *strstr(dataOd, "T") = '\0';
+    *strstr(dataDo, "T") = '\0';
+    messlog("dataOd: %s, dataDo: %s", dataOd, dataDo);
+    char query[500] = "";
+    sprintf(query,  "SELECT `grupa`, `przedmiot`, `typ`, `data`, `opis` FROM `na_ocene` WHERE `data` BETWEEN '%s' AND '%s'", dataOd, dataDo);
+    mysql_query(conn, query);
     MYSQL_RES *res = mysql_store_result(conn);
     mysql_close(sql);
 
+    if (res == NULL) {
+        messlog("MYSQL query error");
+        send_ready* sr = sr_init_error_json(500, "MYSQL query error");
+        return sr;
+    }
     int rowc = mysql_num_rows(res);
     char **data[rowc];
     for (int i = 0; i < rowc; i++) {

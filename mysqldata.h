@@ -3,7 +3,7 @@
 
 #include "send_ready.h"
 
-send_ready* getData();
+send_ready* getData(char* http_request);
 send_ready* insertData(char* body);
 
 #endif

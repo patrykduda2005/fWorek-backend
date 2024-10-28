@@ -167,8 +167,10 @@ send_ready* sr_join_json(send_ready* lhs, send_ready* rhs) {
                       (sr->lines_count + real_rhs->lines_count - 2) * LINESIZE * sizeof(char));
     sr->lines_count += real_rhs->lines_count - 2;
     char temp[LINESIZE] = "";
-    sprintf(temp, "%s,", sr->srl[lhs_lines - 2]);
-    strcpy(sr->srl[lhs_lines - 2], temp);
+    if (sr->srl[lhs_lines - 2][0] != '[') {
+        sprintf(temp, "%s,", sr->srl[lhs_lines - 2]);
+        strcpy(sr->srl[lhs_lines - 2], temp);
+    }
     for (int i = 1; i < real_rhs->lines_count; i++) {
         sr_set_line(sr, real_rhs->srl[i], lhs_lines - 2 + i);
     }

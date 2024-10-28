@@ -32,7 +32,7 @@ enum {
 void process_get_method(struct http_response* hr, char* http_request) {
     send_ready* sr;
     int fault = NOONEFAULT;
-    send_ready* sr_mysql = getData();
+    send_ready* sr_mysql = getData(http_request);
     if (sr_mysql == NULL) {
         fault = MYSQLFAULT;
         sr_mysql = sr_init_error_json(503, "MYSQL sie zepsul");

@@ -126,10 +126,7 @@ send_ready* actually_inserting_data(char data[5][200]) {
     MYSQL *conn = mysql_real_connect(sql, host, user, passwd, db, 0, NULL, 0);
     if (conn == NULL) {
         errorlog("cannot connect to the database");
-        send_ready* sr = sr_init(1);
-        sr_set_http_code(sr, 503);
-        sr_set_line(sr, "MYSQL CONNECT", 0);
-        //sr_set_line(sr, "{\"grupa\": \"gr1\", \"przedmiot\": \"j_ang\", \"typ\": \"zadanie\", \"data\": \"2024-10-10\", \"opis\":\"MYSQL CONNECT\"}", 1);
+        send_ready* sr = sr_init_error_json(503, "MYSQL CONNECT");
         mysql_close(sql);
         return sr;
     }
@@ -139,17 +136,14 @@ send_ready* actually_inserting_data(char data[5][200]) {
     int queryerr = mysql_query(sql, query);
     if (queryerr) {
         errorlog("Inserting not succesfull");
-        send_ready* sr = sr_init(1);
-        sr_set_http_code(sr, 503);
-        sr_set_line(sr, "MYSQL INSERT", 0);
-        //sr_set_line(sr, "{\"grupa\": \"gr1\", \"przedmiot\": \"j_ang\", \"typ\": \"zadanie\", \"data\": \"2024-10-10\", \"opis\":\"MYSQL INSERT\"}", 1);
+        send_ready* sr = sr_init_error_json(503, "MYSQL INSERT");
         mysql_close(sql);
         return sr;
     }
     mysql_close(sql);
-    send_ready* sr = sr_init(1);
+    send_ready* sr = sr_init_json(1);
     if (!queryerr) {
-        sr_set_line(sr, "OK\0", 0);
+        sr_set_line(sr, "{'typ': 'ok', 'opis': 'OK'}", 1);
     } 
     return sr;
 }
@@ -166,8 +160,7 @@ send_ready* insertData(char *body) {
             messlog("property: %s, %s", temppropertyname, field_names[propertyindex]);
             if (strcmp(temppropertyname, field_names[propertyindex]) != 0) {
                 errorlog("wrong format: %s", temppropertyname);
-                send_ready* sr = sr_init(1);
-                sr_set_http_code(sr, 422);
+                send_ready* sr = sr_init_error_json(422, "wrong format");
                 return sr;
             }
             memset(temppropertyname, 0, sizeof(temppropertyname));

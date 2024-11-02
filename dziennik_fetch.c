@@ -19,18 +19,37 @@ struct data {
     int count;
 };
 
+struct cookie {
+    int error;
+    char gr1[1024];
+    char gr2[1024];
+};
 
-int getcookie(char *buffer) {
+
+int getcookie(struct cookie* buffer) {
     FILE *fd = fopen("cookie", "r");
     if (fd == NULL) {
         errorlog("Plik 'cookie' nie istnieje");
-        strcpy(buffer, "cokolwiek\0");
+        buffer->error = 1;
+        //strcpy(buffer, "cokolwiek\0");
         return -1;
     }
-    fgets(buffer, 1024, fd);
-    char *new_line = strstr(buffer, "\n");
+    FILE *fd2 = fopen("cookie2", "r");
+    if (fd2 == NULL) {
+        fclose(fd);
+        errorlog("Plik 'cookie2' nie istnieje");
+        buffer->error = 1;
+        //strcpy(buffer, "cokolwiek\0");
+        return -1;
+    }
+    fgets(buffer->gr1, 1024, fd);
+    fgets(buffer->gr2, 1024, fd2);
+    char *new_line = strstr(buffer->gr1, "\n");
+    if (new_line != NULL) memset(new_line, 0, 1);
+    new_line = strstr(buffer->gr2, "\n");
     if (new_line != NULL) memset(new_line, 0, 1);
     fclose(fd);
+    fclose(fd2);
     return 0;
 }
 
@@ -58,7 +77,12 @@ void parsedate(char *date) {
 }
 
 void getGrupa(char *buffer, char* przed, int grcookie) {
-    if (strcmp(przed, "Język angielski") == 0) {
+    if (strcmp(przed, "Język angielski") == 0
+        || strcmp(przed, "Język rosyjski") == 0
+        || strcmp(przed, "Wychowanie fizyczne") == 0
+        || strcmp(przed, "Programowanie w języku Python") == 0
+        || strcmp(przed, "Systemy zarządzające inteligentnym domem") == 0
+    ) {
         if (grcookie == 1) 
             strcpy(buffer, "gr1");
         else 
@@ -80,7 +104,7 @@ void renamePrzedmiot(char *buffer, char *olprzed) {
     else if (strcmp(olprzed, "Język polski") == 0) {
     strcpy(buffer, "j_polski");
     }
-    else if (strcmp(olprzed,  "J. rosyjski") == 0) {
+    else if (strcmp(olprzed,  "Język rosyjski") == 0) {
     strcpy(buffer,  "j_rosyjski");
     }
     else if (strcmp(olprzed, "Matematyka") == 0) {
@@ -112,7 +136,7 @@ void renamePrzedmiot(char *buffer, char *olprzed) {
 }
 
 
-struct data* reading(SSL* ssl) {
+struct data* reading(SSL* ssl, int grupa) {
     int string_length = 4096;
     char* string = calloc(1, sizeof(char));
     char buffer[4096];
@@ -127,9 +151,9 @@ struct data* reading(SSL* ssl) {
 
 
     char *body = strstr(string, "\r\n\r\n");
-    if (body[4] != '[') {
+    if (body == NULL || body[4] != '[') {
         free(string);
-        errorlog("No permissions for VULCAN (wrong cookie probably)");
+        errorlog("No permissions for VULCAN (wrong cookie probably): %s", body);
         return NULL;
     }
 
@@ -141,6 +165,20 @@ struct data* reading(SSL* ssl) {
     cJSON *el = NULL;
     int i = 0;
     cJSON_ArrayForEach(el, json) {
+        cJSON *przedmiot = cJSON_GetObjectItemCaseSensitive(el, "przedmiotNazwa");
+        if (cJSON_IsString(przedmiot)) {
+            char przedbuff[100] = "";
+            char grupabuff[100];
+            getGrupa(grupabuff, przedmiot->valuestring, grupa);
+            if (grupa != 1 && strcmp(grupabuff, "obie") == 0) {
+                dane[0].count--;
+                continue;
+            }
+            renamePrzedmiot(przedbuff, przedmiot->valuestring);
+            strcpy(dane[i].przedmiot, przedbuff);
+            strcpy(dane[i].grupa, grupabuff);
+        }
+
         cJSON *typ = cJSON_GetObjectItemCaseSensitive(el, "typ");
         if (cJSON_IsNumber(typ)) {
             char buff[100];
@@ -148,15 +186,6 @@ struct data* reading(SSL* ssl) {
             strcpy(dane[i].typ, buff);
         }
 
-        cJSON *przedmiot = cJSON_GetObjectItemCaseSensitive(el, "przedmiotNazwa");
-        if (cJSON_IsString(przedmiot)) {
-            char przedbuff[100] = "";
-            char grupabuff[100];
-            getGrupa(grupabuff, przedmiot->valuestring, 1);
-            renamePrzedmiot(przedbuff, przedmiot->valuestring);
-            strcpy(dane[i].przedmiot, przedbuff);
-            strcpy(dane[i].grupa, grupabuff);
-        }
 
         cJSON *date = cJSON_GetObjectItemCaseSensitive(el, "data");
         if (cJSON_IsString(date)) {
@@ -244,14 +273,91 @@ int verifyDataOdDataDo(char* body) {
     }
 }
 
-void jslike_fetch_get_with_ssl(char* buffer, char* url, char* additional_headers) {
-    messlog("Fetching from %s", url);
+struct SSL_connection {
+    SSL* ssl;
+    int sockfd;
+    SSL_CTX* ctx;
+};
+
+struct SSL_connection* establish_secure_connection(char* hostname) {
+    messlog("Establishing connection with %s", hostname);
     int sockfd;
     struct sockaddr_in server_addr;
     struct hostent *server;
-    const char *hostname = "uczen.eduvulcan.pl";
-    const char *path = "/powiatlezajski/api/SprawdzianyZadaniaDomowe?key=TVRrMU5UVXRNak0wTnkweExUUT0";
+    int port = 443;  // HTTPS port 443
+    SSL_CTX *ctx = SSL_CTX_new(TLS_client_method());
+    if (!ctx) {
+        errorlog("Unable to create SSL context");
+        return NULL;
+    }
+
+    // Create a TCP socket
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        errorlog("Socket creation failed");
+        return NULL;
+    }
+
+    // Resolve the hostname to an IP address
+    server = gethostbyname(hostname);
+    if (!server) {
+        errorlog("No such host");
+        return NULL;
+    }
+
+    // Set up the server address structure
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    memcpy(&server_addr.sin_addr.s_addr, server->h_addr, server->h_length);
+    server_addr.sin_port = htons(port);
+
+    // Connect to the server
+    if (connect(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
+        errorlog("Connection failed");
+        return NULL;
+    }
+
+    // Create an SSL connection over the socket
+    SSL *ssl = SSL_new(ctx);
+    SSL_set_fd(ssl, sockfd);
+
+    if (SSL_connect(ssl) <= 0) {
+        errorlog("SSL CONNECTION FAILED");
+        return NULL;
+    }
+    struct SSL_connection* ssl_conn = malloc(sizeof(struct SSL_connection));
+    ssl_conn->sockfd = sockfd;
+    ssl_conn->ctx = ctx;
+    ssl_conn->ssl = ssl;
+    return ssl_conn;
 }
+
+void requesting(SSL* ssl, char* path, char* headers) {
+    // Create the GET request
+    char request[4048];
+    snprintf(request, sizeof(request),
+             "GET %s HTTP/1.1\r\n"
+             "Connection: close\r\n"
+             "%s\r\n",
+             //"Cookie: EfebSsoCookie=%s;\r\n\r\n",
+             path, headers);
+
+
+    messlog("REQUEST:\n %s", request);
+
+    // Send the GET request over SSL
+    SSL_write(ssl, request, strlen(request));
+}
+
+void ending_connection(struct SSL_connection* ssl) {
+    SSL_shutdown(ssl->ssl);
+    SSL_free(ssl->ssl);
+    close(ssl->sockfd);
+    SSL_CTX_free(ssl->ctx);
+    free(ssl);
+    EVP_cleanup();
+}
+
 
 send_ready* getdziennik(char* body) {
     messlog("Getting dziennik...");
@@ -264,114 +370,69 @@ send_ready* getdziennik(char* body) {
         send_ready* sr = sr_init_error_json(422, "VULCAN zly format zakresu dat");
         return sr;
     }
-    int sockfd;
-    struct sockaddr_in server_addr;
-    struct hostent *server;
-    const char *hostname = "uczen.eduvulcan.pl";
-    const char *path = "/powiatlezajski/api/SprawdzianyZadaniaDomowe?key=TVRrMU5UVXRNak0wTnkweExUUT0";
-    /*
-     * 
-     * dataOd=2024-09-30T22:00:00.000Z&dataDo=2024-10-31T22:59:59.999Z
-     * 
-    */
-    char czas[200] = "&";
-    strcpy(czas + 1, body);
-    strtok(czas, "H"); //to HTTP 1.1/
-    messlog("CZAS: %s", czas);
 
-    int port = 443;  // HTTPS port 443
-    char request[1024];
-
-    // Initialize OpenSSL
-    //SSL_load_error_strings();
-    //OpenSSL_add_ssl_algorithms();
-
-    SSL_CTX *ctx = SSL_CTX_new(TLS_client_method());
-    if (!ctx) {
-        perror("Unable to create SSL context");
-        return NULL;
+    struct SSL_connection* ssl = establish_secure_connection("uczen.eduvulcan.pl");
+    if (ssl == NULL) {
+        send_ready* sr = sr_init_error_json(500, "Cannot establish connection with VULCAN");
+        return sr;
     }
 
-    // Create a TCP socket
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) {
-        perror("Socket creation failed");
-        return NULL;
-    }
+    //path
+    char path[400] = "/powiatlezajski/api/SprawdzianyZadaniaDomowe?";
+    char key[100] = "TVRrMU5UVXRNak0wTnkweExUUT0";
+    char key2[100] ="TVRrMU5UTXRNak0wTnkweExUUT0";
+    char dataOdDo[200] = "";
+    strncpy(dataOdDo, body, strstr(body, "H") - body - 1);
 
-    // Resolve the hostname to an IP address
-    server = gethostbyname(hostname);
-    if (!server) {
-        fprintf(stderr, "No such host\n");
-        return NULL;
-    }
+    strcat(path, dataOdDo);
+    strcat(path, "&");
+    strcat(path, "key=");
+    char *keyinpath = path + strlen(path);
 
-    // Set up the server address structure
-    memset(&server_addr, 0, sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    memcpy(&server_addr.sin_addr.s_addr, server->h_addr, server->h_length);
-    server_addr.sin_port = htons(port);
-
-    // Connect to the server
-    if (connect(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-        perror("Connection failed");
-        return NULL;
-    }
-
-    // Create an SSL connection over the socket
-    SSL *ssl = SSL_new(ctx);
-    SSL_set_fd(ssl, sockfd);
-
-    if (SSL_connect(ssl) <= 0) {
-        return NULL;
-    }
-
-    char cookie[1024] = "";
-    if (getcookie(cookie) == -1) {
+    //cookies
+    struct cookie cookie;
+    strcpy(cookie.gr1, "");
+    strcpy(cookie.gr2, "");
+    if (getcookie(&cookie) == -1) {
         send_ready* sr = sr_init_error_json(500, "Plik z tokenem nie istnieje");
         return sr;
     }
-    
-
-    // Create the GET request
-    snprintf(request, sizeof(request),
-             "GET %s%s HTTP/1.1\r\n"
-             "Host: %s\r\n"
-             "Connection: close\r\n"
-             "Cookie: EfebSsoCookie=%s;\r\n\r\n",
-             path, czas, hostname, cookie);
-
-    //messlog("REQUEST:\n %s", request);
-
-    // Send the GET request over SSL
-    SSL_write(ssl, request, strlen(request));
+    char header[2048] = "";
 
 
+    strcpy(keyinpath, key2);
+    sprintf(header, "Host: uczen.eduvulcan.pl\r\nCookie: EfebSsoCookie=%s;\r\n", cookie.gr2);
+    requesting(ssl->ssl, path, header);
+    struct data *dane2 = reading(ssl->ssl, 2);
 
-    // Receive the response and print it
-    struct data *dane = reading(ssl);
-    if (dane == NULL) {
+    ending_connection(ssl);
+    ssl = establish_secure_connection("uczen.eduvulcan.pl");
+    if (ssl == NULL) {
+        send_ready* sr = sr_init_error_json(500, "Cannot establish connection with VULCAN");
+        return sr;
+    }
+
+    strcpy(keyinpath, key);
+    memset(header, 0, sizeof(header));
+    sprintf(header, "Host: uczen.eduvulcan.pl\r\nCookie: EfebSsoCookie=%s;\r\n", cookie.gr1);
+    requesting(ssl->ssl, path, header);
+    struct data *dane = reading(ssl->ssl, 1);
+
+    if (dane == NULL || dane2 == NULL) {
         free(dane);
-        SSL_shutdown(ssl);
-        SSL_free(ssl);
-        close(sockfd);
-        SSL_CTX_free(ctx);
-        EVP_cleanup();
+        free(dane2);
+        ending_connection(ssl);
         send_ready* sr = sr_init_error_json(503, "No permission for VULCAN");
         return sr;
     }
     send_ready* sr = putdatatosr(dane);
+    send_ready* sr2 = putdatatosr(dane2);
+    send_ready* joined_sr = sr_join_json(sr, sr2);
+
+
     free(dane);
-
-
-    // Clean up
-    SSL_shutdown(ssl);
-    SSL_free(ssl);
-    close(sockfd);
-    SSL_CTX_free(ctx);
-    EVP_cleanup();
+    free(dane2);
+    ending_connection(ssl);
 
     return sr;
 }
-
-

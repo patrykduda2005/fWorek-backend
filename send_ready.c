@@ -55,25 +55,55 @@ int sr_get_http_code(send_ready* sr) {
     else return -1;
 }
 
-void sr_set_line(send_ready* sr, char* line, int index) {
+int sr_set_line(send_ready* sr, char* line, int index) {
     struct send_ready* real_sr = (struct send_ready*) sr;
 
     if (strlen(line) > LINESIZE) {
         errorlog("Line too lengthy for 'send_ready'");
-        return;
+        return -1;
     }
 
     if (index >= real_sr->lines_count || index < 0) {
         errorlog("Cannot change that index of 'send_ready', %d", real_sr->lines_count);
-        return;
+        return -1;
     }
 
     if (index == 0 && real_sr->srl[0][0] == '[') {
         errorlog("Cannot change that index of 'send_ready'");
-        return;
+        return -1;
     }
 
     strcpy(real_sr->srl[index], line);
+    return 0;
+}
+
+int sr_set_json_line(send_ready* sr, char* grupa, char* przedmiot, char* typ, char* data, char* opis, int index, int iscomma) {
+    struct send_ready* real_sr = sr;
+
+    if (index >= real_sr->lines_count || index < 0) {
+        errorlog("Cannot change that index of 'send_ready', %d", real_sr->lines_count);
+        return -1;
+    }
+
+    if (index == 0 && real_sr->srl[0][0] == '[') {
+        errorlog("Cannot change that index of 'send_ready'");
+        return -1;
+    }
+
+    char temp[LINESIZE] = "";
+    sprintf(temp, "{\"grupa\": \"%s\", \"przedmiot\": \"%s\", \"typ\": \"%s\", \"data\":\"%s\", \"opis\": \"%s\"}",
+            grupa, przedmiot, typ, data, opis);
+
+
+    if (iscomma) {
+        if (strlen(temp) + 1 > LINESIZE) {
+            errorlog("json_line is too lengthy: %s", temp);
+            return -1;
+        }
+        strcat(temp, ",");
+    }
+
+    return sr_set_line(sr, temp, index); 
 }
 
 void sr_print(send_ready* sr) {

@@ -5,12 +5,75 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <string.h>
+#include <netdb.h>
 #include "connection.h"
 #include "logging.h"
 #include "signalhandling.h"
 #include "send_ready.h"
 #include "process_string.h"
 
+
+struct SSL_connection* establish_secure_connection(char* hostname) {
+    messlog("Establishing connection with %s", hostname);
+    int sockfd;
+    struct sockaddr_in server_addr;
+    struct hostent *server;
+    int port = 443;  // HTTPS port 443
+    SSL_CTX *ctx = SSL_CTX_new(TLS_client_method());
+    if (!ctx) {
+        errorlog("Unable to create SSL context");
+        return NULL;
+    }
+
+    // Create a TCP socket
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        errorlog("Socket creation failed");
+        return NULL;
+    }
+
+    // Resolve the hostname to an IP address
+    server = gethostbyname(hostname);
+    if (!server) {
+        errorlog("No such host");
+        return NULL;
+    }
+
+    // Set up the server address structure
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    memcpy(&server_addr.sin_addr.s_addr, server->h_addr, server->h_length);
+    server_addr.sin_port = htons(port);
+
+    // Connect to the server
+    if (connect(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
+        errorlog("Connection failed");
+        return NULL;
+    }
+
+    // Create an SSL connection over the socket
+    SSL *ssl = SSL_new(ctx);
+    SSL_set_fd(ssl, sockfd);
+
+    if (SSL_connect(ssl) <= 0) {
+        errorlog("SSL CONNECTION FAILED");
+        return NULL;
+    }
+    struct SSL_connection* ssl_conn = malloc(sizeof(struct SSL_connection));
+    ssl_conn->sockfd = sockfd;
+    ssl_conn->ctx = ctx;
+    ssl_conn->ssl = ssl;
+    return ssl_conn;
+}
+
+void ending_connection(struct SSL_connection* ssl) {
+    SSL_shutdown(ssl->ssl);
+    SSL_free(ssl->ssl);
+    close(ssl->sockfd);
+    SSL_CTX_free(ssl->ctx);
+    free(ssl);
+    EVP_cleanup();
+}
 
 int setup_bind_and_listen_on_socket(int port) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);

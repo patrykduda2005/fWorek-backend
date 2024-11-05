@@ -10,7 +10,7 @@
 #include "connection.h"
 
 
-#define CONNECT 1
+#define CONNECT 0
 
 int main() {
     init_signal();

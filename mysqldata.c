@@ -7,6 +7,7 @@
 #include "mysqlcredentials.h"
 #include "logging.h"
 #include "send_ready.h"
+#include "process_string.h"
 
 const char *field_names[5] = {
     "grupa",
@@ -21,61 +22,16 @@ send_ready* wrap_in_json(char ***data, int rowc) {
     messlog("Wrapping..");
 
     send_ready* sr = sr_init_json(rowc);
-
     for (int row = 0; row < rowc; row++) {
-        char send_ready_row[LINESIZE] = "";
-        int send_ready_row_index = 0;
-
-        send_ready_row_index += sprintf(send_ready_row + send_ready_row_index, "{");
-        for (int i = 0; i < 5; i++) {
-            send_ready_row_index += sprintf(send_ready_row + send_ready_row_index, "\"%s\": \"%s\"", field_names[i], data[row][i]);
-            if (i != 4)
-                send_ready_row_index += sprintf(send_ready_row + send_ready_row_index, ",");
-        }
-        strcat(send_ready_row, "}"); send_ready_row_index++;
-        if (row != rowc-1)
-            send_ready_row_index += sprintf(send_ready_row + send_ready_row_index, ",");
-        sr_set_line(sr, send_ready_row, row + 1);
+        sr_set_json_line(sr, data[row][0], data[row][1], data[row][2], data[row][3], data[row][4], row + 1, row != (rowc - 1));
     }
-
     messlog("Wrapping done");
     return sr;
 }
 
-int verifyDataOdDataDoo(char* get_data) {
-//dataOd=2024-09-30T22:00:00.000Z&dataDo=2024-10-31T22:59:59.999Z
-    char temp[100] = "";
-    strncpy(temp, get_data, 100);
-    char* temp_end = strstr(temp, " ");
-    *temp_end = '\0';
-    regex_t regex;
-    int reti = regcomp(&regex, 
-        "dataOd=[0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}T[0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\.[0-9]\\{3\\}Z"
-       "&dataDo=[0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}T[0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\.[0-9]\\{3\\}Z", 0);
-    if (reti) {
-        errorlog("Regex sie nie skompilowal");
-        regfree(&regex);
-        return -1;
-    }
-
-    reti = regexec(&regex, temp, 0, NULL, 0);
-    if (reti == REG_NOMATCH) {
-        errorlog("Brak matchu: %s", temp);
-        regfree(&regex);
-        return 0;
-    } else if (!reti) {
-        regfree(&regex);
-        return 1;
-    } else {
-        errorlog("Cos sie innego stalo z regexem: %s", temp);
-        regfree(&regex);
-        return 0;
-    }
-}
-
 send_ready* getData(char *http_request) {
     int zakresverification;
-    if ((zakresverification = verifyDataOdDataDoo(strstr(http_request, "/") + 2)) != 1) {
+    if ((zakresverification = verifyDataOdDataDo(strstr(http_request, "/") + 2)) != 1) {
         if (zakresverification == -1) {
             send_ready* sr = sr_init_error_json(500, "REGEX sie zepsul :(");
             return sr;

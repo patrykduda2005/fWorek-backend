@@ -3,13 +3,13 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
-#include <netdb.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
-#include <regex.h>
+#include "connection.h"
 #include "cJSON.h"
 #include "logging.h"
 #include "send_ready.h"
+#include "process_string.h"
 
 struct data {
     char grupa[100];
@@ -73,7 +73,7 @@ void typtostring(char *buffer, int typ) {
 }
 
 void parsedate(char *date) {
-    strtok(date, "T");
+    *strstr(date, "T") = '\0';
 }
 
 void getGrupa(char *buffer, char* przed, int grcookie) {
@@ -201,135 +201,18 @@ struct data* reading(SSL* ssl, int grupa) {
     return dane;
 }
 
-static const char *field_names[5] = {
-    "grupa",
-    "przedmiot",
-    "typ",
-    "data",
-    "opis"
-};
 send_ready* putdatatosr(struct data* data) {
     int rowc = data[0].count;
-    //int field_lenght = strlen(field_names[0]) + strlen(field_names[1]) + strlen(field_names[2]) 
-    //      + strlen(field_names[3]) + strlen(field_names[4]);
-    //5 fields
     messlog("Wrapping..vulcan...");
 
     send_ready* sr = sr_init_json(rowc);
 
     for (int row = 0; row < rowc; row++) {
-        char send_ready_row[LINESIZE] = "";
-        int send_ready_row_index = 0;
-        send_ready_row_index += sprintf(send_ready_row + send_ready_row_index, "{");
-        send_ready_row_index += sprintf(send_ready_row + send_ready_row_index, "\"%s\": \"%s\",", field_names[0], data[row].grupa);
-        send_ready_row_index += sprintf(send_ready_row + send_ready_row_index, "\"%s\": \"%s\",", field_names[1], data[row].przedmiot);
-        send_ready_row_index += sprintf(send_ready_row + send_ready_row_index, "\"%s\": \"%s\",", field_names[2], data[row].typ);
-        send_ready_row_index += sprintf(send_ready_row + send_ready_row_index, "\"%s\": \"%s\",", field_names[3], data[row].data);
-        send_ready_row_index += sprintf(send_ready_row + send_ready_row_index, "\"%s\": \"%s\"", field_names[4], "Z VULCANA");
-        send_ready_row_index += sprintf(send_ready_row + send_ready_row_index, "}");
-        //for (int i = 0; i < 5; i++) {
-        //    send_ready_row += sprintf(send_ready_row, "\"%s\": \"%s\"", field_names[i], data[row][i]);
-        //    if (i != 4)
-        //        send_ready_row += sprintf(send_ready_row, ",");
-        //}
-        //strcat(send_ready_row, "}"); send_ready_row_index++;
-        if (row != rowc-1)
-            send_ready_row_index += sprintf(send_ready_row + send_ready_row_index, ",");
-        sr_set_line(sr, send_ready_row, row + 1);
+        sr_set_json_line(sr, data[row].grupa, data[row].przedmiot, data[row].typ, data[row].data, "Z VULCANA", row + 1, row != (rowc - 1));
     }
 
     messlog("Wrapping done");
     return sr;
-}
-
-int verifyDataOdDataDo(char* body) {
-//dataOd=2024-09-30T22:00:00.000Z&dataDo=2024-10-31T22:59:59.999Z
-    char temp[100] = "";
-    strncpy(temp, body, 100);
-    char* temp_end = strstr(temp, " ");
-    *temp_end = '\0';
-    regex_t regex;
-    int reti = regcomp(&regex, 
-        "dataOd=[0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}T[0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\.[0-9]\\{3\\}Z"
-       "&dataDo=[0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}T[0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\.[0-9]\\{3\\}Z", 0);
-    if (reti) {
-        errorlog("Regex sie nie skompilowal");
-        regfree(&regex);
-        return -1;
-    }
-
-    reti = regexec(&regex, temp, 0, NULL, 0);
-    if (reti == REG_NOMATCH) {
-        errorlog("Brak matchu: %s", temp);
-        regfree(&regex);
-        return 0;
-    } else if (!reti) {
-        regfree(&regex);
-        return 1;
-    } else {
-        errorlog("Cos sie innego stalo z regexem: %s", temp);
-        regfree(&regex);
-        return 0;
-    }
-}
-
-struct SSL_connection {
-    SSL* ssl;
-    int sockfd;
-    SSL_CTX* ctx;
-};
-
-struct SSL_connection* establish_secure_connection(char* hostname) {
-    messlog("Establishing connection with %s", hostname);
-    int sockfd;
-    struct sockaddr_in server_addr;
-    struct hostent *server;
-    int port = 443;  // HTTPS port 443
-    SSL_CTX *ctx = SSL_CTX_new(TLS_client_method());
-    if (!ctx) {
-        errorlog("Unable to create SSL context");
-        return NULL;
-    }
-
-    // Create a TCP socket
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) {
-        errorlog("Socket creation failed");
-        return NULL;
-    }
-
-    // Resolve the hostname to an IP address
-    server = gethostbyname(hostname);
-    if (!server) {
-        errorlog("No such host");
-        return NULL;
-    }
-
-    // Set up the server address structure
-    memset(&server_addr, 0, sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    memcpy(&server_addr.sin_addr.s_addr, server->h_addr, server->h_length);
-    server_addr.sin_port = htons(port);
-
-    // Connect to the server
-    if (connect(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-        errorlog("Connection failed");
-        return NULL;
-    }
-
-    // Create an SSL connection over the socket
-    SSL *ssl = SSL_new(ctx);
-    SSL_set_fd(ssl, sockfd);
-
-    if (SSL_connect(ssl) <= 0) {
-        errorlog("SSL CONNECTION FAILED");
-        return NULL;
-    }
-    struct SSL_connection* ssl_conn = malloc(sizeof(struct SSL_connection));
-    ssl_conn->sockfd = sockfd;
-    ssl_conn->ctx = ctx;
-    ssl_conn->ssl = ssl;
-    return ssl_conn;
 }
 
 void requesting(SSL* ssl, char* path, char* headers) {
@@ -349,14 +232,6 @@ void requesting(SSL* ssl, char* path, char* headers) {
     SSL_write(ssl, request, strlen(request));
 }
 
-void ending_connection(struct SSL_connection* ssl) {
-    SSL_shutdown(ssl->ssl);
-    SSL_free(ssl->ssl);
-    close(ssl->sockfd);
-    SSL_CTX_free(ssl->ctx);
-    free(ssl);
-    EVP_cleanup();
-}
 
 
 send_ready* getdziennik(char* body) {

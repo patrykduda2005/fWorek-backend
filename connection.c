@@ -12,6 +12,84 @@
 #include "send_ready.h"
 #include "process_string.h"
 
+char* get_up_to(char* beginning, char* upto) {
+    char *temp_null_char_pointer;
+    if ((temp_null_char_pointer = strstr(beginning, upto)) == NULL) {
+        return NULL;
+    }
+    *temp_null_char_pointer = '\0';
+    return beginning;
+}
+
+void requesting(SSL* ssl, char* path, char* headers) {
+    // Create the GET request
+    char request[4048];
+    snprintf(request, sizeof(request),
+             "GET %s HTTP/1.1\r\n"
+             "Connection: close\r\n"
+             "%s\r\n",
+             //"Cookie: EfebSsoCookie=%s;\r\n\r\n",
+             path, headers);
+
+
+    messlog("REQUEST:\n %s", request);
+
+    // Send the GET request over SSL
+    SSL_write(ssl, request, strlen(request));
+}
+
+char* reading(SSL* ssl) {
+    int string_length = 4096;
+    char* string = calloc(1, sizeof(char));
+    char buffer[4096];
+    int bytes_received;
+    while ((bytes_received = SSL_read(ssl, buffer, sizeof(buffer) - 1)) > 0) {
+        string = realloc(string, string_length + 1);
+        buffer[bytes_received] = '\0';  // Null-terminate the buffer
+        //printf("%s\n", buffer);
+        strcat(string, buffer);
+        string_length += 4096;
+    }
+
+    char *body = strstr(string, "\r\n\r\n");
+    if (body == NULL || body[4] != '[') {
+        free(string);
+        errorlog("No permissions for VULCAN (wrong cookie probably): %s", body);
+        return NULL;
+    }
+
+    return string;
+}
+
+char* secure_fetch(char* url, char* headers) {
+    //fetch("uczen.eduvulcan.pl/powiatlezajski/api/SprawdzianyZadaniaDomowe?key=TVRrMU5UVXRNak0wTnkweExUUT0&dataOd=2024-09-30T22:00:00.000Z&dataDo=2024-10-31T22:59:59.999Z",
+    //    /*headers*/"Connection: close\r\nHost: uczen.eduvulcan.pl\r\nCookie: EfebSsoCookie=%s;\r\n");
+    char url_copy[strlen(url) + 1];
+    strcpy(url_copy, url);
+    char *hostname;
+    if ((hostname = get_up_to(url_copy, "/")) == NULL) {
+        errorlog("Url wrong format: %s", url);
+        char error[] = "422: url wrong format";
+        char *merror = malloc(sizeof(error));
+        strcpy(merror, error);
+        return merror;
+    }
+    messlog("free???");
+    char *path = url + strlen(hostname);
+
+    struct SSL_connection* ssl = establish_secure_connection(hostname);
+    if (ssl == NULL) {
+        char error[] = "500: Cannot establish connection with VULCAN";
+        char *merror = malloc(sizeof(error));
+        strcpy(merror, error);
+        return merror;
+    }
+    requesting(ssl->ssl, path, headers);
+    char *response = reading(ssl->ssl);
+
+    ending_connection(ssl);
+    return response;
+}
 
 struct SSL_connection* establish_secure_connection(char* hostname) {
     messlog("Establishing connection with %s", hostname);

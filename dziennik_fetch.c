@@ -136,27 +136,8 @@ void renamePrzedmiot(char *buffer, char *olprzed) {
 }
 
 
-struct data* reading(SSL* ssl, int grupa) {
-    int string_length = 4096;
-    char* string = calloc(1, sizeof(char));
-    char buffer[4096];
-    int bytes_received;
-    while ((bytes_received = SSL_read(ssl, buffer, sizeof(buffer) - 1)) > 0) {
-        string = realloc(string, string_length + 1);
-        buffer[bytes_received] = '\0';  // Null-terminate the buffer
-        //printf("%s\n", buffer);
-        strcat(string, buffer);
-        string_length += 4096;
-    }
-
-
-    char *body = strstr(string, "\r\n\r\n");
-    if (body == NULL || body[4] != '[') {
-        free(string);
-        errorlog("No permissions for VULCAN (wrong cookie probably): %s", body);
-        return NULL;
-    }
-
+struct data* pullOutJSON(char* req_response, int grupa) {
+    char* body = strstr(req_response, "\r\n\r\n");
     cJSON *json = cJSON_Parse(body);
     int count = cJSON_GetArraySize(json);
     struct data *dane = calloc(count, sizeof(struct data));
@@ -197,7 +178,7 @@ struct data* reading(SSL* ssl, int grupa) {
         i++;
     }
     cJSON_Delete(json);
-    free(string);
+    free(req_response);
     return dane;
 }
 
@@ -215,23 +196,16 @@ send_ready* putdatatosr(struct data* data) {
     return sr;
 }
 
-void requesting(SSL* ssl, char* path, char* headers) {
-    // Create the GET request
-    char request[4048];
-    snprintf(request, sizeof(request),
-             "GET %s HTTP/1.1\r\n"
-             "Connection: close\r\n"
-             "%s\r\n",
-             //"Cookie: EfebSsoCookie=%s;\r\n\r\n",
-             path, headers);
+struct url {
+    char hostname[100];
+    char path[100];
+    char key[100];
+    char dataOdDo[100];
+};
 
-
-    messlog("REQUEST:\n %s", request);
-
-    // Send the GET request over SSL
-    SSL_write(ssl, request, strlen(request));
+void url_to_string(char* buffer, struct url url) {
+    sprintf(buffer, "%s%s?key=%s&%s", url.hostname, url.path, url.key, url.dataOdDo);
 }
-
 
 
 send_ready* getdziennik(char* body) {
@@ -246,23 +220,21 @@ send_ready* getdziennik(char* body) {
         return sr;
     }
 
-    struct SSL_connection* ssl = establish_secure_connection("uczen.eduvulcan.pl");
-    if (ssl == NULL) {
-        send_ready* sr = sr_init_error_json(500, "Cannot establish connection with VULCAN");
-        return sr;
-    }
+
 
     //path
-    char path[400] = "/powiatlezajski/api/SprawdzianyZadaniaDomowe?";
-    char key[100] = "TVRrMU5UVXRNak0wTnkweExUUT0";
-    char key2[100] ="TVRrMU5UTXRNak0wTnkweExUUT0";
-    char dataOdDo[200] = "";
-    strncpy(dataOdDo, body, strstr(body, "H") - body - 1);
+    struct url gr1_url;
+    strcpy(gr1_url.hostname, "uczen.eduvulcan.pl");
+    strcpy(gr1_url.path, "/powiatlezajski/api/SprawdzianyZadaniaDomowe");
+    strcpy(gr1_url.key, "TVRrMU5UVXRNak0wTnkweExUUT0");
+    strncpy(gr1_url.dataOdDo, body, strstr(body, "H") - body - 1); //HTTP 1.1
 
-    strcat(path, dataOdDo);
-    strcat(path, "&");
-    strcat(path, "key=");
-    char *keyinpath = path + strlen(path);
+    struct url gr2_url;
+    memcpy(&gr2_url, &gr1_url, sizeof(struct url));
+    strcpy(gr2_url.key, "TVRrMU5UTXRNak0wTnkweExUUT0");
+
+    char gr_url_buffer[sizeof(struct url)];
+
 
     //cookies
     struct cookie cookie;
@@ -275,28 +247,20 @@ send_ready* getdziennik(char* body) {
     char header[2048] = "";
 
 
-    strcpy(keyinpath, key2);
-    sprintf(header, "Host: uczen.eduvulcan.pl\r\nCookie: EfebSsoCookie=%s;\r\n", cookie.gr2);
-    requesting(ssl->ssl, path, header);
-    struct data *dane2 = reading(ssl->ssl, 2);
-
-    ending_connection(ssl);
-    ssl = establish_secure_connection("uczen.eduvulcan.pl");
-    if (ssl == NULL) {
-        send_ready* sr = sr_init_error_json(500, "Cannot establish connection with VULCAN");
-        return sr;
-    }
-
-    strcpy(keyinpath, key);
-    memset(header, 0, sizeof(header));
+    url_to_string(gr_url_buffer, gr1_url);
+    messlog("%s", gr_url_buffer);
     sprintf(header, "Host: uczen.eduvulcan.pl\r\nCookie: EfebSsoCookie=%s;\r\n", cookie.gr1);
-    requesting(ssl->ssl, path, header);
-    struct data *dane = reading(ssl->ssl, 1);
+    struct data *dane2 = pullOutJSON(secure_fetch(gr_url_buffer, header), 1);
+
+
+    url_to_string(gr_url_buffer, gr2_url);
+    memset(header, 0, sizeof(header));
+    sprintf(header, "Host: uczen.eduvulcan.pl\r\nCookie: EfebSsoCookie=%s;\r\n", cookie.gr2);
+    struct data *dane = pullOutJSON(secure_fetch(gr_url_buffer, header), 2);
 
     if (dane == NULL || dane2 == NULL) {
         free(dane);
         free(dane2);
-        ending_connection(ssl);
         send_ready* sr = sr_init_error_json(503, "No permission for VULCAN");
         return sr;
     }
@@ -307,7 +271,6 @@ send_ready* getdziennik(char* body) {
 
     free(dane);
     free(dane2);
-    ending_connection(ssl);
 
-    return sr;
+    return joined_sr;
 }

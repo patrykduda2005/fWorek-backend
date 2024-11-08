@@ -9,6 +9,7 @@ struct SSL_connection {
     SSL_CTX* ctx;
 };
 
+char* secure_fetch(char* url, char* headers);
 struct SSL_connection* establish_secure_connection(char* hostname);
 void ending_connection(struct SSL_connection* ssl);
 int setup_bind_and_listen_on_socket(int port);

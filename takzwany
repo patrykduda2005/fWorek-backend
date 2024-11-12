@@ -1,0 +1,13 @@
+HTTP/2 200 
+cache-control: no-cache, no-store, must-revalidate
+pragma: no-cache
+content-type: application/json; charset=utf-8
+expires: -1
+x-ua-compatible: IE=edge
+strict-transport-security: max-age=31536000
+x-powered-by: 
+set-cookie: ARR_3S_ARR_EFEB=ff2cafd082c21c217d5de83190349a38862a370fcf0bb8086acb6f0044d5d119;Path=/;Domain=uczen.eduvulcan.pl;Secure;HttpOnly
+x-powered-by: 
+date: Tue, 12 Nov 2024 18:02:21 GMT
+content-length: 502
+

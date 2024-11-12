@@ -1,0 +1,68 @@
+
+
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Błąd</title>
+    <link href="https://uczen.eduvulcan.pl/faviconEduVulcan.ico" rel="shortcut icon" type="image/x-icon" />
+    <link href="https://uczen.eduvulcan.pl/faviconEduVulcan.ico" rel="icon" type="image/ico" />
+    <link href="https://uonetplus-cdn.vulcan.net.pl/AppCdn/EduVulcanUczen/Content/vulcan-core/vulcan-css/vulcan-site.1.0.0.css?_dc=24.09.0004.60503" rel="stylesheet" type="text/css" />
+</head>
+<body>
+    <form method="post" action="../../ErrorPage.aspx?__customer__group=powiatlezajski&amp;__customer__symbol=&amp;key=TVRrMU5UVXRNak0wTnkweExUUT0&amp;id=19274" id="form1">
+<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="/wEPDwULLTE4MzYxMTU2NzVkZLqAcy29yrdSmVRMB8m7tN8DwbsJ" />
+
+<input type="hidden" name="__VIEWSTATEGENERATOR" id="__VIEWSTATEGENERATOR" value="5ED29197" />
+        <div class="startScreen startScreen-start">
+            <div class="topBar">
+                <div class="startLogoDiv">
+                    <a href="https://eduvulcan.pl" target="_blank" title="eduVULCAN">
+                        
+                            <img alt="Logo eduVULCAN" class="logoSvg" src="https://uczen.eduvulcan.pl/Content/vulcan-core/images/logoEduVulcan_jasne.svg" />
+                        
+                    </a>
+                </div>
+            </div>
+
+            <div class="info-error-content-info">
+                <span class="info-error-message-text">
+                    HTTP Error 404
+                </span>
+                <span>
+                    <pre>Wystąpił nieoczekiwany wyjątek. Jeśli problem będzie się powtarzał prosimy o kontakt z serwisem.</pre>
+                </span>
+                <div id="divCloseFrame" style="display: none">
+                    <button id="btnCloseFrame">Zamknij</button>
+                </div>
+            </div>
+
+            <div class="bottomBar">
+                <span>
+                    <a class="appVersion" href="http://www.vulcan.edu.pl/" title="VULCAN sp. z o.o." target="_blank">VULCAN sp. z o.o., eduVULCAN, wersja 24.09.0004.60503</a>
+                </span>
+                
+            </div>
+        </div>
+    </form>
+    <script>
+        window.addEventListener('load', function () {
+            var respectPolicyAction = "";
+            var cookieSettingsAction = "";
+
+            var documentUrlAction = document.URL.split("/").pop();
+            if (documentUrlAction == respectPolicyAction || documentUrlAction == cookieSettingsAction) {
+                var divClose = document.getElementById('divCloseFrame');
+                var btnClose = document.getElementById('btnCloseFrame');
+                divClose.style.display = 'block';
+                btnClose.addEventListener('click', function () {
+                    if (window.parent) {
+                        window.parent.postMessage({ msg: 'close-iframe' });
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

@@ -16,6 +16,7 @@ struct data {
     char przedmiot[100];
     char typ[100];
     char data[100];
+    char opis[300];
     int count;
 };
 
@@ -135,8 +136,50 @@ void renamePrzedmiot(char *buffer, char *olprzed) {
     }
 }
 
+void getOpis(char* buffer, int id, char* key, char* cookie, int isZadanie) {
+    char url[400] = "";
+    char path[100] = "";
+    if (isZadanie) {
+        strcpy(path, "ZadanieDomowe");
+    } else {
+        strcpy(path, "Sprawdzian");
+    }
+    sprintf(url, "uczen.eduvulcan.pl/powiatlezajski/api/%sSzczegoly?key=%s&id=%d",
+            path, key, id);
+    char headers[2048] = "";
+    sprintf(headers, "Host: uczen.eduvulcan.pl\r\nCookie: EfebSsoCookie=%s;\r\n", cookie);
 
-struct data* pullOutJSON(char* req_response, int grupa) {
+    char* response = secure_fetch(url, headers);
+    if (response == NULL) {
+        strcpy(buffer, "Z VULCANA (nie udalo sie pobrac opisu)");
+        free(response);
+        return;
+    }
+
+    char* body = strstr(response, "\r\n\r\n");
+    if (body == NULL) {
+        strcpy(buffer, "Z VULCANA (nie udalo sie pobrac opisu)");
+        free(response);
+        return;
+    }
+
+    body = strstr(body, "\"opis\":\"");
+
+    if (body == NULL) {
+        strcpy(buffer, "Z VULCANA (nie udalo sie pobrac opisu)");
+        free(response);
+        return;
+    }
+
+    body += 8;
+
+    messlog("OPIS INSIDE: %s", body);
+    strncpy(buffer, body, strstr(body, "\",\"") - body);
+    free(response);
+}
+
+
+struct data* pullOutJSON(char* req_response, int grupa, char* key, char* cookie) {
     char* body = strstr(req_response, "\r\n\r\n");
     cJSON *json = cJSON_Parse(body);
     int count = cJSON_GetArraySize(json);
@@ -145,6 +188,7 @@ struct data* pullOutJSON(char* req_response, int grupa) {
     //printf("JSON: %s\n", cJSON_PrintUnformatted(json));
     cJSON *el = NULL;
     int i = 0;
+    int typForThisOne;
     cJSON_ArrayForEach(el, json) {
         cJSON *przedmiot = cJSON_GetObjectItemCaseSensitive(el, "przedmiotNazwa");
         if (cJSON_IsString(przedmiot)) {
@@ -163,10 +207,18 @@ struct data* pullOutJSON(char* req_response, int grupa) {
         cJSON *typ = cJSON_GetObjectItemCaseSensitive(el, "typ");
         if (cJSON_IsNumber(typ)) {
             char buff[100];
+            typForThisOne = typ->valueint;
             typtostring(buff, typ->valueint);
             strcpy(dane[i].typ, buff);
         }
 
+        cJSON *id = cJSON_GetObjectItemCaseSensitive(el, "id");
+        if (cJSON_IsNumber(id)) {
+            char opis[300] = "";
+            getOpis(opis, id->valueint, key, cookie, typForThisOne == 4);
+            messlog("OPIS: %s", opis);
+            strcpy(dane[i].opis, opis);
+        }
 
         cJSON *date = cJSON_GetObjectItemCaseSensitive(el, "data");
         if (cJSON_IsString(date)) {
@@ -189,7 +241,7 @@ send_ready* putdatatosr(struct data* data) {
     send_ready* sr = sr_init_json(rowc);
 
     for (int row = 0; row < rowc; row++) {
-        sr_set_json_line(sr, data[row].grupa, data[row].przedmiot, data[row].typ, data[row].data, "Z VULCANA", row + 1, row != (rowc - 1));
+        sr_set_json_line(sr, data[row].grupa, data[row].przedmiot, data[row].typ, data[row].data, data[row].opis, row + 1, row != (rowc - 1));
     }
 
     messlog("Wrapping done");
@@ -250,13 +302,13 @@ send_ready* getdziennik(char* body) {
     url_to_string(gr_url_buffer, gr1_url);
     messlog("%s", gr_url_buffer);
     sprintf(header, "Host: uczen.eduvulcan.pl\r\nCookie: EfebSsoCookie=%s;\r\n", cookie.gr1);
-    struct data *dane2 = pullOutJSON(secure_fetch(gr_url_buffer, header), 1);
+    struct data *dane2 = pullOutJSON(secure_fetch(gr_url_buffer, header), 1, gr1_url.key, cookie.gr1);
 
 
     url_to_string(gr_url_buffer, gr2_url);
     memset(header, 0, sizeof(header));
     sprintf(header, "Host: uczen.eduvulcan.pl\r\nCookie: EfebSsoCookie=%s;\r\n", cookie.gr2);
-    struct data *dane = pullOutJSON(secure_fetch(gr_url_buffer, header), 2);
+    struct data *dane = pullOutJSON(secure_fetch(gr_url_buffer, header), 2, gr2_url.key, cookie.gr2);
 
     if (dane == NULL || dane2 == NULL) {
         free(dane);

@@ -53,8 +53,8 @@ char* reading(SSL* ssl) {
 
     char *body = strstr(string, "\r\n\r\n");
     if (body == NULL || body[4] != '[') {
-        free(string);
         errorlog("No permissions for VULCAN (wrong cookie probably): %s", body);
+        free(string);
         return NULL;
     }
 

@@ -49,6 +49,7 @@ void sr_set_http_code(send_ready* sr, int code) {
     }
     ((struct send_ready*)sr)->response_code = code;
 }
+
 int sr_get_http_code(send_ready* sr) {
     if (sr != NULL)
         return ((struct send_ready*)sr)->response_code;
@@ -91,15 +92,22 @@ int sr_set_json_line(send_ready* sr, char* grupa, char* przedmiot, char* typ, ch
     }
 
     char temp[LINESIZE] = "";
-    sprintf(temp, "{\"grupa\": \"%s\", \"przedmiot\": \"%s\", \"typ\": \"%s\", \"data\":\"%s\", \"opis\": \"%s\"}",
-            grupa, przedmiot, typ, data, opis);
+    int opis_offset = snprintf(temp, sizeof(temp), "{\"grupa\": \"%s\", \"przedmiot\": \"%s\", \"typ\": \"%s\", \"data\":\"%s\", \"opis\": \"",
+            grupa, przedmiot, typ, data);
 
-
-    if (iscomma) {
-        if (strlen(temp) + 1 > LINESIZE) {
-            errorlog("json_line is too lengthy: %s", temp);
-            return -1;
+    if (LINESIZE - opis_offset - 4 < strlen(opis)) { 
+        errorlog("json_line is too lengthy: %s%s%s", temp, opis, "\"}");
+        strncat(temp, opis, sizeof(temp) - opis_offset - 4);
+        strcat(temp, "\"}");
+        if (iscomma) {
+            strcat(temp, ",");
         }
+        sr_set_line(sr, temp, index); 
+        return -1;
+    }
+
+    sprintf(temp + opis_offset, "%s\"}", opis);
+    if (iscomma) {
         strcat(temp, ",");
     }
 
